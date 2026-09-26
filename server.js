@@ -2,20 +2,18 @@ import express from "express";
 import cors from "cors";
 
 import {
-  ENGINE_VERSION,
   runProbabilityEngine
 } from "./probabilityEngine.js";
 
 const app = express();
 
-const PORT = process.env.PORT || 10000;
-
-const SPORTYBET_BASE =
-  process.env.SPORTYBET_BASE ||
-  "https://www.sportybet.com";
-
 app.use(cors());
 app.use(express.json());
+
+const PORT = process.env.PORT || 3000;
+
+const OLD_API =
+  "https://sportybet-api.onrender.com";
 
 
 /* =========================================================
@@ -26,590 +24,60 @@ app.get("/", (req, res) => {
   res.json({
     status: "online",
     service: "Football 360 Optimizer V2",
-    engine: ENGINE_VERSION,
-    dataSource: "SportyBet direct"
+    engine: "Probability Engine V2"
   });
 });
 
 
 /* =========================================================
-   ENGINE INFO
+   TEST CONNECTION TO WORKING SPORTYBET API
    ========================================================= */
 
-app.get("/engine", (req, res) => {
-  res.json({
-    engine: ENGINE_VERSION,
-    strategy: "Probability-based optimizer",
-    probabilitySource: "Market-implied probability",
-    dataSource: "SportyBet direct",
-    sportybetBase: SPORTYBET_BASE
-  });
-});
-
-
-/* =========================================================
-   SPORTYBET DIRECT FETCH
-   ========================================================= */
-
-async function fetchSportyBetPage(pageNum = 1) {
-
-  const params = new URLSearchParams({
-
-    sportId:
-      "sr:sport:1",
-
-    marketId:
-      "1,18,10,29,11,26,36,14,16,45,47,60,60100",
-
-    pageSize:
-      "100",
-
-    pageNum:
-      String(pageNum),
-
-    todayGames:
-      "false",
-
-    timeline:
-      "720",
-
-    _t:
-      String(Date.now())
-
-  });
-
-
-  const url =
-    `${SPORTYBET_BASE}/api/ng/factsCenter/pcUpcomingEvents?${params.toString()}`;
-
-
-  const controller =
-    new AbortController();
-
-  const timeout =
-    setTimeout(
-      () => controller.abort(),
-      15000
-    );
-
+app.get("/sportybet-test", async (req, res) => {
 
   try {
 
     const response =
       await fetch(
-        url,
-        {
-          method: "GET",
-
-          headers: {
-            "Accept":
-              "application/json",
-
-            "Content-Type":
-              "application/json",
-
-            "Current-Country":
-              "NG",
-
-            "User-Agent":
-              "Mozilla/5.0"
-          },
-
-          signal:
-            controller.signal
-        }
+        `${OLD_API}/selection-engine?target=10`
       );
-
 
     const text =
       await response.text();
 
-
     let data;
 
-
     try {
-
-      data =
-        JSON.parse(text);
-
+      data = JSON.parse(text);
     } catch {
-
-      throw new Error(
-        `SportyBet returned non-JSON response. HTTP ${response.status}`
-      );
-
-    }
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        `SportyBet HTTP ${response.status}: ${
-          data?.message ||
-          data?.innerMsg ||
-          "Unknown error"
-        }`
-      );
-
-    }
-
-
-    if (
-      data?.bizCode &&
-      data.bizCode !== 10000
-    ) {
-
-      throw new Error(
-        `SportyBet bizCode ${data.bizCode}: ${
-          data.message ||
-          data.innerMsg ||
-          "Invalid response"
-        }`
-      );
-
-    }
-
-
-    return {
-      url,
-      data
-    };
-
-
-  } finally {
-
-    clearTimeout(timeout);
-
-  }
-
-}
-
-
-/* =========================================================
-   CONVERT SPORTYBET RESPONSE TO ENGINE MARKETS
-   ========================================================= */
-
-function extractMarkets(data) {
-
-  const markets = [];
-
-
-  const tournaments =
-    Array.isArray(
-      data?.data?.tournaments
-    )
-      ? data.data.tournaments
-      : [];
-
-
-  for (
-    const tournament of tournaments
-  ) {
-
-    const competition =
-      tournament?.name ||
-      tournament?.tournamentName ||
-      "";
-
-
-    const events =
-      Array.isArray(
-        tournament?.events
-      )
-        ? tournament.events
-        : [];
-
-
-    for (
-      const event of events
-    ) {
-
-      const eventId =
-        event?.eventId ||
-        event?.id;
-
-
-      if (!eventId) {
-        continue;
-      }
-
-
-      const homeTeam =
-        event?.homeTeamName ||
-        event?.homeTeam ||
-        "";
-
-
-      const awayTeam =
-        event?.awayTeamName ||
-        event?.awayTeam ||
-        "";
-
-
-      const eventName =
-        homeTeam && awayTeam
-          ? `${homeTeam} vs ${awayTeam}`
-          : String(eventId);
-
-
-      const eventMarkets =
-        Array.isArray(
-          event?.markets
-        )
-          ? event.markets
-          : [];
-
-
-      for (
-        const market of eventMarkets
-      ) {
-
-        const marketId =
-          market?.id;
-
-
-        const marketName =
-          market?.desc ||
-          market?.name ||
-          `Market ${marketId || ""}`;
-
-
-        const specifier =
-          market?.specifier;
-
-
-        const outcomes =
-          Array.isArray(
-            market?.outcomes
-          )
-            ? market.outcomes
-            : [];
-
-
-        for (
-          const outcome of outcomes
-        ) {
-
-          if (
-            outcome?.isActive === false
-          ) {
-            continue;
-          }
-
-
-          const odds =
-            Number(
-              outcome?.odds
-            );
-
-
-          if (
-            !Number.isFinite(odds) ||
-            odds <= 1
-          ) {
-            continue;
-          }
-
-
-          markets.push({
-
-            eventId:
-              String(eventId),
-
-            eventName,
-
-            competition,
-
-            marketId:
-              marketId
-                ? String(marketId)
-                : undefined,
-
-            marketName,
-
-            specifier,
-
-            outcomeId:
-              outcome?.id
-                ? String(outcome.id)
-                : undefined,
-
-            selection:
-              outcome?.desc ||
-              outcome?.name ||
-              "Unknown",
-
-            odds
-
-          });
-
-        }
-
-      }
-
-    }
-
-  }
-
-
-  return markets;
-
-}
-
-
-/* =========================================================
-   EVENTS TEST
-   ========================================================= */
-
-app.get("/events-test", async (req, res) => {
-
-  try {
-
-    const page =
-      Math.max(
-        1,
-        Number(req.query.page || 1)
-      );
-
-
-    const result =
-      await fetchSportyBetPage(
-        page
-      );
-
-
-    const markets =
-      extractMarkets(
-        result.data
-      );
-
-
-    const tournaments =
-      Array.isArray(
-        result.data?.data?.tournaments
-      )
-        ? result.data.data.tournaments
-        : [];
-
-
-    const events =
-      tournaments.flatMap(
-        tournament =>
-          Array.isArray(
-            tournament?.events
-          )
-            ? tournament.events
-            : []
-      );
-
-
-    res.json({
-
-      success: true,
-
-      source:
-        "SportyBet direct",
-
-      page,
-
-      tournamentsFound:
-        tournaments.length,
-
-      eventsFound:
-        events.length,
-
-      marketsFound:
-        markets.length,
-
-      markets:
-        markets.slice(
-          0,
-          100
-        )
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      "SportyBet events error:",
-      error
-    );
-
-
-    res.status(502).json({
-
-      success: false,
-
-      source:
-        "SportyBet direct",
-
-      error:
-        error.message
-
-    });
-
-  }
-
-});
-
-
-/* =========================================================
-   OPTIMIZER
-   ========================================================= */
-
-app.get("/optimize", async (req, res) => {
-
-  try {
-
-    const targetOdds =
-      Number(
-        req.query.target ||
-        100
-      );
-
-
-    if (
-      !Number.isFinite(targetOdds) ||
-      targetOdds <= 1
-    ) {
-
-      return res.status(400).json({
-
-        success: false,
-
-        error:
-          "Target odds must be greater than 1."
-
-      });
-
-    }
-
-
-    const pageNumbers =
-      Array.from(
-        {
-          length: 3
-        },
-        (_, index) =>
-          index + 1
-      );
-
-
-    const pageResults =
-      await Promise.all(
-
-        pageNumbers.map(
-          page =>
-            fetchSportyBetPage(
-              page
-            ).catch(
-              error => {
-
-                console.error(
-                  `SportyBet page ${page} failed:`,
-                  error.message
-                );
-
-                return null;
-
-              }
-            )
-        )
-
-      );
-
-
-    const allMarkets = [];
-
-
-    for (
-      const result of pageResults
-    ) {
-
-      if (!result) {
-        continue;
-      }
-
-
-      const markets =
-        extractMarkets(
-          result.data
-        );
-
-
-      allMarkets.push(
-        ...markets
-      );
-
-    }
-
-
-    if (
-      allMarkets.length === 0
-    ) {
-
       return res.status(502).json({
-
         success: false,
-
         error:
-          "SportyBet returned no usable football markets.",
-
-        pagesChecked:
-          pageNumbers.length
-
+          "Old SportyBet API returned a non-JSON response.",
+        httpStatus: response.status,
+        response: text.slice(0, 500)
       });
-
     }
 
-
-    const engine =
-      runProbabilityEngine(
-        allMarkets,
-        targetOdds
-      );
-
-
     res.json({
-
-      success:
-        engine.success,
-
-      generatedAt:
-        new Date().toISOString(),
-
-      dataSource:
-        "SportyBet direct",
-
-      targetOdds,
-
-      marketsFetched:
-        allMarkets.length,
-
-      ...engine
-
+      success: true,
+      source: OLD_API,
+      httpStatus: response.status,
+      oldApiResponse: data
     });
-
 
   } catch (error) {
 
     console.error(
-      "Optimizer error:",
+      "SportyBet API connection error:",
       error
     );
-
 
     res.status(500).json({
-
       success: false,
-
       error:
         error.message ||
-        "Optimizer failed."
-
+        "Could not connect to old SportyBet API."
     });
 
   }
@@ -618,106 +86,71 @@ app.get("/optimize", async (req, res) => {
 
 
 /* =========================================================
-   MANUAL ENGINE TEST
+   TEST PROBABILITY ENGINE
    ========================================================= */
 
-app.post("/test-engine", (req, res) => {
+app.get("/test-engine", (req, res) => {
 
-  try {
+  const target =
+    Number(
+      req.query.target || 10
+    );
 
-    const {
-      markets,
-      targetOdds,
-      options
-    } = req.body;
+  const markets = [
 
+    {
+      eventId: "match-1",
+      eventName: "Team A vs Team B",
+      marketName: "Double Chance",
+      selection: "Home or Away",
+      odds: 1.30
+    },
 
-    if (
-      !Array.isArray(markets)
-    ) {
+    {
+      eventId: "match-2",
+      eventName: "Team C vs Team D",
+      marketName: "Over/Under",
+      selection: "Under 3.5",
+      odds: 1.40
+    },
 
-      return res.status(400).json({
+    {
+      eventId: "match-3",
+      eventName: "Team E vs Team F",
+      marketName: "Draw No Bet",
+      selection: "Home",
+      odds: 1.50
+    },
 
-        success: false,
-
-        error:
-          "markets must be an array"
-
-      });
-
+    {
+      eventId: "match-4",
+      eventName: "Team G vs Team H",
+      marketName: "Double Chance",
+      selection: "Draw or Away",
+      odds: 1.60
     }
 
+  ];
 
-    const result =
-      runProbabilityEngine(
-        markets,
-        Number(targetOdds),
-        options || {}
-      );
+  const result =
+    runProbabilityEngine(
+      markets,
+      target
+    );
 
-
-    res.json(result);
-
-
-  } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      error:
-        error.message
-
-    });
-
-  }
+  res.json(result);
 
 });
 
 
 /* =========================================================
-   SERVER START
+   START SERVER
    ========================================================= */
 
-app.listen(
-  PORT,
-  () => {
+app.listen(PORT, () => {
 
-    console.log(
-      "=========================================="
-    );
+  console.log(
+    `Football 360 Optimizer V2 running on port ${PORT}`
+  );
 
-    console.log(
-      "FOOTBALL 360 OPTIMIZER V2"
-    );
-
-    console.log(
-      "=========================================="
-    );
-
-    console.log(
-      `Port: ${PORT}`
-    );
-
-    console.log(
-      `Engine: ${ENGINE_VERSION}`
-    );
-
-    console.log(
-      `SportyBet: ${SPORTYBET_BASE}`
-    );
-
-    console.log(
-      "Data source: SportyBet direct"
-    );
-
-    console.log(
-      "Server started successfully."
-    );
-
-    console.log(
-      "=========================================="
-    );
-
-  }
-);
+});
