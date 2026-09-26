@@ -1,0 +1,17 @@
+{
+  "name": "football360-optimizer-v2",
+  "version": "1.0.0",
+  "description": "Football 360 probability-based football optimizer",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}
