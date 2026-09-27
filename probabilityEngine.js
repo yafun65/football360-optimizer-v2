@@ -1,4 +1,4 @@
-const ENGINE_VERSION = "PROBABILITY_ENGINE_V4.2";
+const ENGINE_VERSION = "PROBABILITY_ENGINE_V4.3";
 
 const DEFAULTS = {
   minProbability: 0.55,
@@ -7,32 +7,62 @@ const DEFAULTS = {
   maxSelections: 15,
   beamWidth: 300,
   maxCandidates: 250,
-
-  // Diversity controls
   maxSameMarketType: 3,
   maxSameCompetition: 4
 };
 
 // =========================================================
-// STRICT COMPETITION WHITELIST
+// STRICT COMPETITION + CATEGORY RULES
 // =========================================================
 
-const ALLOWED_COMPETITIONS = new Set([
-  "Premier League",
-  "La Liga",
-  "Serie A",
-  "Bundesliga",
-  "Ligue 1",
+const COMPETITION_RULES = {
+  "Premier League": {
+    categories: ["England"]
+  },
 
-  "UEFA Champions League",
-  "UEFA Europa League",
-  "UEFA Conference League",
+  "La Liga": {
+    categories: ["Spain"]
+  },
 
-  // Common alternate names
-  "Champions League",
-  "Europa League",
-  "Conference League"
-]);
+  "Serie A": {
+    categories: ["Italy"]
+  },
+
+  "Bundesliga": {
+    categories: ["Germany"]
+  },
+
+  "Ligue 1": {
+    categories: ["France"]
+  },
+
+  "UEFA Champions League": {
+    categories: ["International Clubs"]
+  },
+
+  "Champions League": {
+    categories: ["International Clubs"]
+  },
+
+  "UEFA Europa League": {
+    categories: ["International Clubs"]
+  },
+
+  "Europa League": {
+    categories: ["International Clubs"]
+  },
+
+  "UEFA Conference League": {
+    categories: ["International Clubs"]
+  },
+
+  "Conference League": {
+    categories: ["International Clubs"]
+  }
+};
+
+const ALLOWED_COMPETITIONS =
+  new Set(Object.keys(COMPETITION_RULES));
 
 // =========================================================
 // HELPERS
@@ -43,10 +73,6 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function normalizeText(value) {
   return String(value || "")
     .trim()
@@ -54,18 +80,46 @@ function normalizeText(value) {
 }
 
 // =========================================================
+// STRICT COMPETITION VALIDATION
+// =========================================================
+
+function isAllowedCompetition(
+  competition,
+  category
+) {
+  const comp = normalizeText(competition);
+  const cat = normalizeText(category);
+
+  const rule =
+    COMPETITION_RULES[comp];
+
+  if (!rule) {
+    return false;
+  }
+
+  return rule.categories.includes(cat);
+}
+
+// =========================================================
 // MARKET FAMILY
 // =========================================================
 
 function getMarketFamily(marketName) {
-  const name = normalizeText(marketName).toLowerCase();
+  const name =
+    normalizeText(marketName).toLowerCase();
 
   if (
     name.includes("correct score") ||
     name.includes("half time/full time") ||
     name.includes("half-time/full-time") ||
     name.includes("winning margin") ||
-    name.includes("exact goals")
+    name.includes("exact goals") ||
+    name.includes("first scorer") ||
+    name.includes("last scorer") ||
+    name.includes("anytime scorer") ||
+    name.includes("player to score") ||
+    name.includes("player goals") ||
+    name.includes("player assists")
   ) {
     return "excluded";
   }
@@ -90,8 +144,7 @@ function getMarketFamily(marketName) {
   if (
     name.includes("double chance") ||
     name.includes("1x") ||
-    name.includes("x2") ||
-    name.includes("12")
+    name.includes("x2")
   ) {
     return "double-chance";
   }
@@ -116,17 +169,6 @@ function getMarketFamily(marketName) {
     name.includes("match winner")
   ) {
     return "1x2";
-  }
-
-  if (
-    name.includes("first scorer") ||
-    name.includes("last scorer") ||
-    name.includes("anytime scorer") ||
-    name.includes("player to score") ||
-    name.includes("player goals") ||
-    name.includes("player assists")
-  ) {
-    return "excluded";
   }
 
   return "other";
@@ -193,36 +235,39 @@ function getOddsValueScore(odds) {
 // COMPETITION QUALITY
 // =========================================================
 
-function getCompetitionQuality(competition) {
-  const name = normalizeText(competition);
-
+function getCompetitionQuality(
+  competition
+) {
   if (
-    name === "UEFA Champions League" ||
-    name === "Champions League"
+    competition ===
+      "UEFA Champions League" ||
+    competition === "Champions League"
   ) {
     return 1.00;
   }
 
   if (
-    name === "Premier League" ||
-    name === "La Liga" ||
-    name === "Serie A" ||
-    name === "Bundesliga" ||
-    name === "Ligue 1"
+    competition === "Premier League" ||
+    competition === "La Liga" ||
+    competition === "Serie A" ||
+    competition === "Bundesliga" ||
+    competition === "Ligue 1"
   ) {
     return 0.98;
   }
 
   if (
-    name === "UEFA Europa League" ||
-    name === "Europa League"
+    competition ===
+      "UEFA Europa League" ||
+    competition === "Europa League"
   ) {
     return 0.96;
   }
 
   if (
-    name === "UEFA Conference League" ||
-    name === "Conference League"
+    competition ===
+      "UEFA Conference League" ||
+    competition === "Conference League"
   ) {
     return 0.94;
   }
@@ -231,62 +276,103 @@ function getCompetitionQuality(competition) {
 }
 
 // =========================================================
-// STRICT COMPETITION CHECK
-// =========================================================
-
-function isAllowedCompetition(competition) {
-  const normalized = normalizeText(competition);
-
-  return ALLOWED_COMPETITIONS.has(normalized);
-}
-
-// =========================================================
 // NORMALIZE MARKET
 // =========================================================
 
 function normalizeMarket(market) {
-  const odds = toNumber(market.odds);
+  const odds =
+    toNumber(market.odds);
 
-  if (!Number.isFinite(odds) || odds < 1.01) {
+  if (
+    !Number.isFinite(odds) ||
+    odds < 1.01
+  ) {
     return null;
   }
 
-  const competition = normalizeText(market.competition);
-  const marketName = normalizeText(market.marketName);
-  const selection = normalizeText(market.selection);
+  const competition =
+    normalizeText(market.competition);
 
-  // HARD competition filter
-  if (!isAllowedCompetition(competition)) {
+  const category =
+    normalizeText(market.category);
+
+  const marketName =
+    normalizeText(market.marketName);
+
+  const selection =
+    normalizeText(market.selection);
+
+  // -------------------------------------------------------
+  // HARD COMPETITION + CATEGORY FILTER
+  // -------------------------------------------------------
+
+  if (
+    !isAllowedCompetition(
+      competition,
+      category
+    )
+  ) {
     return null;
   }
 
-  const marketFamily = getMarketFamily(marketName);
+  // -------------------------------------------------------
+  // MARKET FILTER
+  // -------------------------------------------------------
 
-  // HARD market exclusion
-  if (marketFamily === "excluded") {
+  const marketFamily =
+    getMarketFamily(marketName);
+
+  if (
+    marketFamily === "excluded"
+  ) {
     return null;
   }
 
-  const probability = Number((1 / odds).toFixed(6));
+  // -------------------------------------------------------
+  // PROBABILITY
+  // -------------------------------------------------------
 
-  if (!Number.isFinite(probability)) {
+  const probability =
+    Number(
+      (1 / odds).toFixed(6)
+    );
+
+  if (
+    !Number.isFinite(probability)
+  ) {
     return null;
   }
 
-  const qualifiesProbability =
-    probability >= DEFAULTS.minProbability;
-
-  const qualifiesOdds =
-    odds >= DEFAULTS.minOdds &&
-    odds <= DEFAULTS.maxOdds;
-
-  if (!qualifiesProbability || !qualifiesOdds) {
+  if (
+    probability <
+    DEFAULTS.minProbability
+  ) {
     return null;
   }
 
-  const oddsValueScore = getOddsValueScore(odds);
-  const marketQuality = getMarketQuality(marketFamily);
-  const competitionQuality = getCompetitionQuality(competition);
+  if (
+    odds < DEFAULTS.minOdds ||
+    odds > DEFAULTS.maxOdds
+  ) {
+    return null;
+  }
+
+  // -------------------------------------------------------
+  // QUALITY
+  // -------------------------------------------------------
+
+  const oddsValueScore =
+    getOddsValueScore(odds);
+
+  const marketQuality =
+    getMarketQuality(
+      marketFamily
+    );
+
+  const competitionQuality =
+    getCompetitionQuality(
+      competition
+    );
 
   const rankingScore =
     probability * 42 +
@@ -295,37 +381,77 @@ function normalizeMarket(market) {
     competitionQuality * 10;
 
   return {
-    eventId: String(market.eventId || ""),
-    eventName: market.eventName || "",
-    marketName,
-    selection,
-    odds,
-    competition,
-    category: market.category || "",
-    gameId: String(market.gameId || ""),
-    startTime: market.startTime ?? null,
+    eventId:
+      String(
+        market.eventId || ""
+      ),
 
-    marketId: String(market.marketId || ""),
-    outcomeId: String(market.outcomeId || ""),
-    specifier: market.specifier ?? null,
+    eventName:
+      market.eventName || "",
+
+    marketName,
+
+    selection,
+
+    odds,
+
+    competition,
+
+    category,
+
+    gameId:
+      String(
+        market.gameId || ""
+      ),
+
+    startTime:
+      market.startTime ?? null,
+
+    marketId:
+      String(
+        market.marketId || ""
+      ),
+
+    outcomeId:
+      String(
+        market.outcomeId || ""
+      ),
+
+    specifier:
+      market.specifier ?? null,
 
     marketFamily,
 
     probability,
-    probabilityPercent: Number((probability * 100).toFixed(2)),
+
+    probabilityPercent:
+      Number(
+        (probability * 100)
+          .toFixed(2)
+      ),
 
     oddsValueScore,
+
     marketQuality,
+
     competitionQuality,
 
-    rankingScore: Number(rankingScore.toFixed(4)),
+    rankingScore:
+      Number(
+        rankingScore.toFixed(4)
+      ),
 
     qualifiesProbability: true,
+
     qualifiesOdds: true,
+
     qualifies: true,
 
-    logOdds: Math.log(odds),
-    logProbability: Math.log(probability)
+    logOdds:
+      Math.log(odds),
+
+    logProbability:
+      Math.log(probability)
   };
 }
 
@@ -333,40 +459,70 @@ function normalizeMarket(market) {
 // PREPARE CANDIDATES
 // =========================================================
 
-function prepareCandidates(markets) {
+function prepareCandidates(
+  markets
+) {
   const normalized = [];
 
-  for (const market of Array.isArray(markets) ? markets : []) {
-    const candidate = normalizeMarket(market);
+  for (
+    const market of
+      Array.isArray(markets)
+        ? markets
+        : []
+  ) {
+    const candidate =
+      normalizeMarket(
+        market
+      );
 
     if (!candidate) {
       continue;
     }
 
-    normalized.push(candidate);
+    normalized.push(
+      candidate
+    );
   }
 
-  // Highest-quality candidates first
   normalized.sort(
-    (a, b) => b.rankingScore - a.rankingScore
+    (a, b) =>
+      b.rankingScore -
+      a.rankingScore
   );
 
-  // Keep only a small number from each event.
-  // This prevents one match from dominating the optimizer.
-  const perEvent = new Map();
+  // Maximum 5 candidates
+  // from each event.
+  const perEvent =
+    new Map();
+
   const balanced = [];
 
-  for (const candidate of normalized) {
-    const count = perEvent.get(candidate.eventId) || 0;
+  for (
+    const candidate of
+      normalized
+  ) {
+    const count =
+      perEvent.get(
+        candidate.eventId
+      ) || 0;
 
     if (count >= 5) {
       continue;
     }
 
-    perEvent.set(candidate.eventId, count + 1);
-    balanced.push(candidate);
+    perEvent.set(
+      candidate.eventId,
+      count + 1
+    );
 
-    if (balanced.length >= DEFAULTS.maxCandidates) {
+    balanced.push(
+      candidate
+    );
+
+    if (
+      balanced.length >=
+      DEFAULTS.maxCandidates
+    ) {
       break;
     }
   }
@@ -378,23 +534,37 @@ function prepareCandidates(markets) {
 // STATE SCORE
 // =========================================================
 
-function scoreState(state, target) {
-  if (!state || !state.selections.length) {
+function scoreState(
+  state,
+  target
+) {
+  if (
+    !state ||
+    !state.selections.length
+  ) {
     return -Infinity;
   }
 
-  const totalOdds = state.totalOdds;
+  const totalOdds =
+    state.totalOdds;
 
   const distance =
-    Math.abs(Math.log(totalOdds / target));
+    Math.abs(
+      Math.log(
+        totalOdds /
+          target
+      )
+    );
 
   const overshoot =
     totalOdds > target
-      ? (totalOdds - target) / target
+      ? (totalOdds - target) /
+        target
       : 0;
 
   const selectionPenalty =
-    state.selections.length * 0.07;
+    state.selections.length *
+    0.07;
 
   const distinctMarkets =
     state.marketTypes.size;
@@ -403,22 +573,26 @@ function scoreState(state, target) {
     state.competitions.size;
 
   const diversityReward =
-    distinctMarkets * 0.22 +
-    distinctCompetitions * 0.05;
+    distinctMarkets *
+      0.22 +
+    distinctCompetitions *
+      0.05;
 
   const averageQuality =
     state.selections.reduce(
       (sum, selection) =>
-        sum + selection.rankingScore,
+        sum +
+        selection.rankingScore,
       0
-    ) / state.selections.length;
+    ) /
+    state.selections.length;
 
   return (
-    -distance * 25
-    -overshoot * 15
-    -selectionPenalty
-    +diversityReward
-    +averageQuality * 0.018
+    -distance * 25 -
+    overshoot * 15 -
+    selectionPenalty +
+    diversityReward +
+    averageQuality * 0.018
   );
 }
 
@@ -449,22 +623,44 @@ function buildCombination(
   let states = [
     {
       totalOdds: 1,
+
       selections: [],
-      eventIds: new Set(),
-      marketTypes: new Set(),
-      marketTypeCounts: new Map(),
-      competitions: new Set(),
-      competitionCounts: new Map()
+
+      eventIds:
+        new Set(),
+
+      marketTypes:
+        new Set(),
+
+      marketTypeCounts:
+        new Map(),
+
+      competitions:
+        new Set(),
+
+      competitionCounts:
+        new Map()
     }
   ];
 
-  for (const candidate of candidates) {
+  for (
+    const candidate of
+      candidates
+  ) {
     const nextStates = [];
 
-    for (const state of states) {
-
-      // Never select two outcomes from the same event.
-      if (state.eventIds.has(candidate.eventId)) {
+    for (
+      const state of
+        states
+    ) {
+      // Never use two
+      // selections from
+      // the same event.
+      if (
+        state.eventIds.has(
+          candidate.eventId
+        )
+      ) {
         continue;
       }
 
@@ -473,7 +669,10 @@ function buildCombination(
           candidate.marketFamily
         ) || 0;
 
-      if (marketCount >= maxSameMarketType) {
+      if (
+        marketCount >=
+        maxSameMarketType
+      ) {
         continue;
       }
 
@@ -482,14 +681,21 @@ function buildCombination(
           candidate.competition
         ) || 0;
 
-      if (competitionCount >= maxSameCompetition) {
+      if (
+        competitionCount >=
+        maxSameCompetition
+      ) {
         continue;
       }
 
       const newTotal =
-        state.totalOdds * candidate.odds;
+        state.totalOdds *
+        candidate.odds;
 
-      if (newTotal > upperTarget) {
+      if (
+        newTotal >
+        upperTarget
+      ) {
         continue;
       }
 
@@ -506,19 +712,27 @@ function buildCombination(
       }
 
       const newEventIds =
-        new Set(state.eventIds);
+        new Set(
+          state.eventIds
+        );
 
-      newEventIds.add(candidate.eventId);
+      newEventIds.add(
+        candidate.eventId
+      );
 
       const newMarketTypes =
-        new Set(state.marketTypes);
+        new Set(
+          state.marketTypes
+        );
 
       newMarketTypes.add(
         candidate.marketFamily
       );
 
       const newMarketTypeCounts =
-        new Map(state.marketTypeCounts);
+        new Map(
+          state.marketTypeCounts
+        );
 
       newMarketTypeCounts.set(
         candidate.marketFamily,
@@ -526,14 +740,18 @@ function buildCombination(
       );
 
       const newCompetitions =
-        new Set(state.competitions);
+        new Set(
+          state.competitions
+        );
 
       newCompetitions.add(
         candidate.competition
       );
 
       const newCompetitionCounts =
-        new Map(state.competitionCounts);
+        new Map(
+          state.competitionCounts
+        );
 
       newCompetitionCounts.set(
         candidate.competition,
@@ -541,48 +759,88 @@ function buildCombination(
       );
 
       nextStates.push({
-        totalOdds: newTotal,
-        selections: newSelections,
-        eventIds: newEventIds,
-        marketTypes: newMarketTypes,
-        marketTypeCounts: newMarketTypeCounts,
-        competitions: newCompetitions,
-        competitionCounts: newCompetitionCounts
+        totalOdds:
+          newTotal,
+
+        selections:
+          newSelections,
+
+        eventIds:
+          newEventIds,
+
+        marketTypes:
+          newMarketTypes,
+
+        marketTypeCounts:
+          newMarketTypeCounts,
+
+        competitions:
+          newCompetitions,
+
+        competitionCounts:
+          newCompetitionCounts
       });
     }
 
-    // Keep previous states too.
-    nextStates.push(...states);
+    nextStates.push(
+      ...states
+    );
 
     nextStates.sort(
       (a, b) =>
-        scoreState(b, target) -
-        scoreState(a, target)
+        scoreState(
+          b,
+          target
+        ) -
+        scoreState(
+          a,
+          target
+        )
     );
 
     const unique = [];
-    const seen = new Set();
 
-    for (const state of nextStates) {
+    const seen =
+      new Set();
+
+    for (
+      const state of
+        nextStates
+    ) {
       const bucket =
-        Math.round(state.totalOdds * 100) / 100;
+        (
+          Math.round(
+            state.totalOdds *
+              100
+          ) / 100
+        ).toFixed(2);
 
       const marketKey =
-        Array.from(state.marketTypes)
+        Array.from(
+          state.marketTypes
+        )
           .sort()
           .join(",");
 
       const key =
         `${bucket}:${state.selections.length}:${marketKey}`;
 
-      if (seen.has(key)) {
+      if (
+        seen.has(key)
+      ) {
         continue;
       }
 
       seen.add(key);
-      unique.push(state);
 
-      if (unique.length >= beamWidth) {
+      unique.push(
+        state
+      );
+
+      if (
+        unique.length >=
+        beamWidth
+      ) {
         break;
       }
     }
@@ -590,20 +848,31 @@ function buildCombination(
     states = unique;
   }
 
-  const validStates = states.filter(
-    state =>
-      state.totalOdds >= target &&
-      state.selections.length <= maxSelections
-  );
+  const validStates =
+    states.filter(
+      state =>
+        state.totalOdds >=
+          target &&
+        state.selections.length <=
+          maxSelections
+    );
 
-  if (!validStates.length) {
+  if (
+    !validStates.length
+  ) {
     return null;
   }
 
   validStates.sort(
     (a, b) =>
-      scoreState(b, target) -
-      scoreState(a, target)
+      scoreState(
+        b,
+        target
+      ) -
+      scoreState(
+        a,
+        target
+      )
   );
 
   return validStates[0];
@@ -618,13 +887,21 @@ export function runProbabilityEngine(
   targetOdds,
   options = {}
 ) {
-  const target = toNumber(targetOdds);
+  const target =
+    toNumber(
+      targetOdds
+    );
 
-  if (!target || target <= 1) {
+  if (
+    !target ||
+    target <= 1
+  ) {
     return {
       success: false,
-      engineVersion: ENGINE_VERSION,
-      error: "Target odds must be greater than 1."
+      engineVersion:
+        ENGINE_VERSION,
+      error:
+        "Target odds must be greater than 1."
     };
   }
 
@@ -633,32 +910,44 @@ export function runProbabilityEngine(
     ...options
   };
 
-  // ---------------------------------------------
-  // STEP 1: HARD FILTER
-  // ---------------------------------------------
+  // -------------------------------------------------------
+  // HARD FILTER
+  // -------------------------------------------------------
 
   const allowedMarkets = [];
 
-  for (const market of Array.isArray(markets) ? markets : []) {
-    const normalized = normalizeMarket(market);
+  for (
+    const market of
+      Array.isArray(markets)
+        ? markets
+        : []
+  ) {
+    const normalized =
+      normalizeMarket(
+        market
+      );
 
     if (!normalized) {
       continue;
     }
 
-    allowedMarkets.push(normalized);
+    allowedMarkets.push(
+      normalized
+    );
   }
 
-  // ---------------------------------------------
-  // STEP 2: PREPARE SMALL CANDIDATE POOL
-  // ---------------------------------------------
+  // -------------------------------------------------------
+  // PREPARE CANDIDATES
+  // -------------------------------------------------------
 
   const candidates =
-    prepareCandidates(allowedMarkets);
+    prepareCandidates(
+      allowedMarkets
+    );
 
-  // ---------------------------------------------
-  // STEP 3: BUILD COMBINATION
-  // ---------------------------------------------
+  // -------------------------------------------------------
+  // BUILD COMBINATION
+  // -------------------------------------------------------
 
   const combination =
     buildCombination(
@@ -670,8 +959,12 @@ export function runProbabilityEngine(
   if (!combination) {
     return {
       success: false,
-      engineVersion: ENGINE_VERSION,
-      targetOdds: target,
+
+      engineVersion:
+        ENGINE_VERSION,
+
+      targetOdds:
+        target,
 
       settings,
 
@@ -683,20 +976,27 @@ export function runProbabilityEngine(
     };
   }
 
-  // ---------------------------------------------
-  // STEP 4: FINAL VALIDATION
-  // ---------------------------------------------
+  // -------------------------------------------------------
+  // CLEAN SELECTIONS
+  // -------------------------------------------------------
 
   const selections =
     combination.selections.map(
       selection => ({
-        eventId: selection.eventId,
-        eventName: selection.eventName,
+        eventId:
+          selection.eventId,
 
-        marketName: selection.marketName,
-        selection: selection.selection,
+        eventName:
+          selection.eventName,
 
-        odds: selection.odds,
+        marketName:
+          selection.marketName,
+
+        selection:
+          selection.selection,
+
+        odds:
+          selection.odds,
 
         competition:
           selection.competition,
@@ -757,39 +1057,49 @@ export function runProbabilityEngine(
       })
     );
 
-  // ---------------------------------------------
+  // -------------------------------------------------------
   // MARKET COUNTS
-  // ---------------------------------------------
+  // -------------------------------------------------------
 
   const marketTypeCounts = {};
 
-  for (const selection of selections) {
+  for (
+    const selection of
+      selections
+  ) {
     marketTypeCounts[
       selection.marketFamily
     ] =
-      (marketTypeCounts[
-        selection.marketFamily
-      ] || 0) + 1;
+      (
+        marketTypeCounts[
+          selection.marketFamily
+        ] || 0
+      ) + 1;
   }
 
-  // ---------------------------------------------
+  // -------------------------------------------------------
   // COMPETITION COUNTS
-  // ---------------------------------------------
+  // -------------------------------------------------------
 
   const competitionCounts = {};
 
-  for (const selection of selections) {
+  for (
+    const selection of
+      selections
+  ) {
     competitionCounts[
       selection.competition
     ] =
-      (competitionCounts[
-        selection.competition
-      ] || 0) + 1;
+      (
+        competitionCounts[
+          selection.competition
+        ] || 0
+      ) + 1;
   }
 
-  // ---------------------------------------------
+  // -------------------------------------------------------
   // FINAL ODDS
-  // ---------------------------------------------
+  // -------------------------------------------------------
 
   const combinedOdds =
     Number(
@@ -798,8 +1108,12 @@ export function runProbabilityEngine(
 
   const combinedProbability =
     selections.reduce(
-      (product, selection) =>
-        product * selection.probability,
+      (
+        product,
+        selection
+      ) =>
+        product *
+        selection.probability,
       1
     );
 
@@ -829,7 +1143,10 @@ export function runProbabilityEngine(
 
       combinedProbabilityPercent:
         Number(
-          (combinedProbability * 100).toFixed(4)
+          (
+            combinedProbability *
+            100
+          ).toFixed(4)
         ),
 
       selectionCount:
@@ -844,4 +1161,7 @@ export function runProbabilityEngine(
   };
 }
 
-export { ALLOWED_COMPETITIONS };
+export {
+  ALLOWED_COMPETITIONS,
+  COMPETITION_RULES
+};
