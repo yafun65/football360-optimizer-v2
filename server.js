@@ -5,7 +5,7 @@
 
 import express from "express";
 import cors from "cors";
-
+const { startTelegramBot } = require("./telegramBot.js");
 import {
   runProbabilityEngine
 } from "./probabilityEngine.js";
@@ -729,3 +729,4 @@ app.listen(
 
   }
 );
+startTelegramBot();
