@@ -87,7 +87,7 @@ app.get(
 
       const response =
         await fetch(
-          `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}`
+          `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`
         );
 
 
@@ -289,13 +289,21 @@ app.get(
 
       /*
        * -----------------------------------------------------
-       * GET DATA FROM WORKING OLD API
+       * GET FULL FILTERED CANDIDATE POOL FROM OLD API
        * -----------------------------------------------------
+       *
+       * includeCandidates=true is important.
+       *
+       * Without it, the old API only returns the old
+       * engine's selected combination/top candidates.
+       *
+       * With it, we receive the full filtered candidate
+       * pool.
        */
 
       const response =
         await fetch(
-          `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}`
+          `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`
         );
 
 
@@ -356,21 +364,42 @@ app.get(
 
       /*
        * -----------------------------------------------------
-       * COLLECT AVAILABLE CANDIDATES
+       * COLLECT FULL FILTERED CANDIDATE POOL
        * -----------------------------------------------------
-       *
-       * The current old API exposes:
-       *
-       * 1. combination.selections
-       * 2. topCandidates
-       *
-       * We combine both.
        */
 
       const rawCandidates = [];
 
 
+      /*
+       * PRIMARY SOURCE:
+       *
+       * The old API now returns the full filtered pool
+       * through filteredCandidates.
+       */
+
       if (
+        Array.isArray(
+          oldData.filteredCandidates
+        )
+      ) {
+
+        rawCandidates.push(
+          ...oldData.filteredCandidates
+        );
+
+      }
+
+
+      /*
+       * FALLBACK:
+       *
+       * If filteredCandidates is unavailable, use the old
+       * combination selections.
+       */
+
+      if (
+        rawCandidates.length === 0 &&
         oldData.combination &&
         Array.isArray(
           oldData.combination.selections
@@ -384,7 +413,14 @@ app.get(
       }
 
 
+      /*
+       * SECOND FALLBACK:
+       *
+       * If topCandidates exists, use it.
+       */
+
       if (
+        rawCandidates.length === 0 &&
         Array.isArray(
           oldData.topCandidates
         )
@@ -399,7 +435,7 @@ app.get(
 
       /*
        * -----------------------------------------------------
-       * REMOVE DUPLICATES
+       * CONVERT CANDIDATES TO V2 MARKET FORMAT
        * -----------------------------------------------------
        */
 
