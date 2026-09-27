@@ -1,9 +1,9 @@
 /* =========================================================
-   FOOTBALL 360 OPTIMIZER V3
-   PROBABILITY ENGINE
+   FOOTBALL 360 OPTIMIZER V4
+   VALUE + DIVERSITY PROBABILITY ENGINE
    ========================================================= */
 
-const ENGINE_VERSION = "PROBABILITY_ENGINE_V3";
+const ENGINE_VERSION = "PROBABILITY_ENGINE_V4";
 
 
 /* =========================================================
@@ -14,14 +14,20 @@ const DEFAULTS = {
   minProbability: 0.55,
   minOdds: 1.25,
   maxOdds: 4.00,
-  maxSelections: 20,
-  beamWidth: 1000,
+  maxSelections: 15,
+  beamWidth: 1500,
+  maxCandidates: 600,
 
   /*
-   Maximum number of candidates retained after ranking.
-   This is deliberately much larger than the old 100.
+   Maximum number of selections from the same market family.
+   This prevents a slip from becoming dominated by one market.
   */
-  maxCandidates: 500
+  maxSameMarketType: 5,
+
+  /*
+   Maximum number of selections from one competition.
+  */
+  maxSameCompetition: 6
 };
 
 
@@ -35,9 +41,11 @@ const ALLOWED_COMPETITIONS = [
   "Serie A",
   "Bundesliga",
   "Ligue 1",
+
   "UEFA Champions League",
   "UEFA Europa League",
   "UEFA Conference League",
+
   "Champions League",
   "Europa League",
   "Conference League"
@@ -45,7 +53,7 @@ const ALLOWED_COMPETITIONS = [
 
 
 /* =========================================================
-   MARKET TYPES
+   EXCLUDED MARKETS
    ========================================================= */
 
 const EXCLUDED_MARKETS = [
@@ -95,7 +103,8 @@ function normalizeText(value) {
    ========================================================= */
 
 function isAllowedCompetition(competition) {
-  const name = normalizeText(competition);
+  const name =
+    normalizeText(competition);
 
   if (!name) {
     return false;
@@ -104,7 +113,9 @@ function isAllowedCompetition(competition) {
   return ALLOWED_COMPETITIONS.some(
     allowed =>
       name === normalizeText(allowed) ||
-      name.includes(normalizeText(allowed))
+      name.includes(
+        normalizeText(allowed)
+      )
   );
 }
 
@@ -114,12 +125,74 @@ function isAllowedCompetition(competition) {
    ========================================================= */
 
 function isExcludedMarket(marketName) {
-  const name = normalizeText(marketName);
+  const name =
+    normalizeText(marketName);
 
   return EXCLUDED_MARKETS.some(
     excluded =>
-      name.includes(normalizeText(excluded))
+      name.includes(
+        normalizeText(excluded)
+      )
   );
+}
+
+
+/* =========================================================
+   MARKET FAMILY
+   ========================================================= */
+
+function getMarketFamily(marketName) {
+
+  const name =
+    normalizeText(marketName);
+
+
+  if (
+    name.includes("double chance")
+  ) {
+    return "double-chance";
+  }
+
+
+  if (
+    name.includes("over/under") ||
+    name.includes("over under")
+  ) {
+    return "goals";
+  }
+
+
+  if (
+    name.includes("gg/ng") ||
+    name.includes("both teams") ||
+    name.includes("both team")
+  ) {
+    return "btts";
+  }
+
+
+  if (
+    name.includes("draw no bet")
+  ) {
+    return "draw-no-bet";
+  }
+
+
+  if (
+    name.includes("handicap")
+  ) {
+    return "handicap";
+  }
+
+
+  if (
+    name.includes("1x2")
+  ) {
+    return "1x2";
+  }
+
+
+  return "other";
 }
 
 
@@ -131,6 +204,7 @@ function normalizeMarket(
   market,
   index = 0
 ) {
+
   if (
     !market ||
     typeof market !== "object"
@@ -149,7 +223,9 @@ function normalizeMarket(
     );
 
 
-  if (odds <= 1) {
+  if (
+    odds <= 1
+  ) {
     return null;
   }
 
@@ -233,16 +309,6 @@ function normalizeMarket(
 
 /* =========================================================
    IMPLIED PROBABILITY
-   =========================================================
-
-   This is the bookmaker-implied probability:
-
-       probability = 1 / odds
-
-   It is a baseline signal only.
-
-   It is NOT an independently calculated football
-   probability and is NOT a guarantee of success.
    ========================================================= */
 
 function calculateProbability(odds) {
@@ -259,25 +325,88 @@ function calculateProbability(odds) {
 
 
 /* =========================================================
+   ODDS VALUE SCORE
+   ========================================================= */
+
+function getOddsValueScore(odds) {
+
+  /*
+   Very low odds contribute little toward the target.
+
+   Medium odds provide a better balance between
+   probability and target efficiency.
+  */
+
+  if (
+    odds >= 1.40 &&
+    odds <= 1.80
+  ) {
+    return 1.00;
+  }
+
+
+  if (
+    odds >= 1.30 &&
+    odds < 1.40
+  ) {
+    return 0.94;
+  }
+
+
+  if (
+    odds >= 1.25 &&
+    odds < 1.30
+  ) {
+    return 0.86;
+  }
+
+
+  if (
+    odds > 1.80 &&
+    odds <= 2.20
+  ) {
+    return 0.92;
+  }
+
+
+  if (
+    odds > 2.20 &&
+    odds <= 3.00
+  ) {
+    return 0.78;
+  }
+
+
+  if (
+    odds > 3.00 &&
+    odds <= 4.00
+  ) {
+    return 0.65;
+  }
+
+
+  return 0.40;
+}
+
+
+/* =========================================================
    MARKET QUALITY
    ========================================================= */
 
-function getMarketQuality(market) {
+function getMarketQuality(
+  marketName
+) {
 
   const name =
     normalizeText(
-      market.marketName
+      marketName
     );
 
-
-  /*
-   Preferred mainstream markets.
-  */
 
   if (
     name.includes("double chance")
   ) {
-    return 1.00;
+    return 0.92;
   }
 
 
@@ -285,7 +414,7 @@ function getMarketQuality(market) {
     name.includes("over/under") ||
     name.includes("over under")
   ) {
-    return 0.98;
+    return 0.96;
   }
 
 
@@ -294,87 +423,32 @@ function getMarketQuality(market) {
     name.includes("both teams") ||
     name.includes("both team")
   ) {
-    return 0.96;
+    return 0.94;
   }
 
 
   if (
     name.includes("draw no bet")
   ) {
-    return 0.95;
+    return 0.93;
   }
 
 
   if (
     name.includes("handicap")
   ) {
-    return 0.88;
+    return 0.86;
   }
 
 
   if (
     name.includes("1x2")
   ) {
-    return 0.85;
+    return 0.82;
   }
 
 
-  /*
-   Unknown markets are still allowed,
-   but receive a lower quality score.
-  */
-
-  return 0.75;
-}
-
-
-/* =========================================================
-   ODDS QUALITY
-   ========================================================= */
-
-function getOddsQuality(odds) {
-
-  if (
-    odds >= 1.30 &&
-    odds <= 1.80
-  ) {
-    return 1.00;
-  }
-
-
-  if (
-    odds >= 1.25 &&
-    odds < 1.30
-  ) {
-    return 0.94;
-  }
-
-
-  if (
-    odds > 1.80 &&
-    odds <= 2.20
-  ) {
-    return 0.94;
-  }
-
-
-  if (
-    odds > 2.20 &&
-    odds <= 3.00
-  ) {
-    return 0.85;
-  }
-
-
-  if (
-    odds > 3.00 &&
-    odds <= 4.00
-  ) {
-    return 0.72;
-  }
-
-
-  return 0.50;
+  return 0.72;
 }
 
 
@@ -393,32 +467,48 @@ function getCompetitionQuality(
 
 
   if (
-    name.includes("champions league")
+    name.includes(
+      "champions league"
+    )
   ) {
     return 1.00;
   }
 
 
   if (
-    name.includes("premier league") ||
-    name.includes("la liga") ||
-    name.includes("serie a") ||
-    name.includes("bundesliga") ||
-    name.includes("ligue 1")
+    name.includes(
+      "premier league"
+    ) ||
+    name.includes(
+      "la liga"
+    ) ||
+    name.includes(
+      "serie a"
+    ) ||
+    name.includes(
+      "bundesliga"
+    ) ||
+    name.includes(
+      "ligue 1"
+    )
   ) {
     return 0.98;
   }
 
 
   if (
-    name.includes("europa league")
+    name.includes(
+      "europa league"
+    )
   ) {
     return 0.96;
   }
 
 
   if (
-    name.includes("conference league")
+    name.includes(
+      "conference league"
+    )
   ) {
     return 0.94;
   }
@@ -429,7 +519,7 @@ function getCompetitionQuality(
 
 
 /* =========================================================
-   MARKET SCORING
+   MARKET SCORE
    ========================================================= */
 
 function scoreMarket(
@@ -486,38 +576,42 @@ function scoreMarket(
     );
 
 
-  const probabilityScore =
+  const probabilityPercent =
     probability * 100;
 
 
-  const qualifiesProbability =
-    probability >=
-    settings.minProbability;
-
-
-  const qualifiesOdds =
-    normalized.odds >=
-      settings.minOdds &&
-    normalized.odds <=
-      settings.maxOdds;
-
-
   if (
-    !qualifiesProbability ||
-    !qualifiesOdds
+    probability <
+    settings.minProbability
   ) {
     return null;
   }
 
 
-  const marketQuality =
-    getMarketQuality(
-      normalized
+  if (
+    normalized.odds <
+      settings.minOdds ||
+    normalized.odds >
+      settings.maxOdds
+  ) {
+    return null;
+  }
+
+
+  const marketFamily =
+    getMarketFamily(
+      normalized.marketName
     );
 
 
-  const oddsQuality =
-    getOddsQuality(
+  const marketQuality =
+    getMarketQuality(
+      normalized.marketName
+    );
+
+
+  const oddsValueScore =
+    getOddsValueScore(
       normalized.odds
     );
 
@@ -529,23 +623,29 @@ function scoreMarket(
 
 
   /*
-   Overall ranking score.
+   V4 ranking.
 
-   Probability is still the strongest signal,
-   but the optimizer now considers market and
-   competition quality as well.
+   Probability remains important,
+   but V4 no longer simply rewards
+   the smallest odds.
   */
 
   const rankingScore =
-    probability * 60 +
+
+    probability * 45 +
+
+    oddsValueScore * 25 +
+
     marketQuality * 20 +
-    oddsQuality * 10 +
+
     competitionQuality * 10;
 
 
   return {
 
     ...normalized,
+
+    marketFamily,
 
     probability:
       round(
@@ -555,19 +655,19 @@ function scoreMarket(
 
     probabilityPercent:
       round(
-        probabilityScore,
+        probabilityPercent,
         2
+      ),
+
+    oddsValueScore:
+      round(
+        oddsValueScore,
+        4
       ),
 
     marketQuality:
       round(
         marketQuality,
-        4
-      ),
-
-    oddsQuality:
-      round(
-        oddsQuality,
         4
       ),
 
@@ -645,10 +745,10 @@ function prepareCandidates(
 
 
   /*
-   Group candidates by event.
+   Group by event.
 
-   This prevents one match from dominating
-   the entire candidate pool.
+   We don't want one match to dominate
+   the candidate pool.
   */
 
   const grouped =
@@ -689,7 +789,7 @@ function prepareCandidates(
 
 
   /*
-   Keep several market possibilities
+   Keep up to 8 different possibilities
    from each match.
   */
 
@@ -708,7 +808,7 @@ function prepareCandidates(
     candidates.push(
       ...eventMarkets.slice(
         0,
-        6
+        8
       )
     );
 
@@ -726,10 +826,6 @@ function prepareCandidates(
   );
 
 
-  /*
-   Keep a much larger pool than V2.
-  */
-
   return candidates.slice(
     0,
     options.maxCandidates ||
@@ -739,12 +835,13 @@ function prepareCandidates(
 
 
 /* =========================================================
-   COMBINATION SCORE
+   STATE SCORE
    ========================================================= */
 
 function stateScore(
   state,
-  targetOdds
+  targetOdds,
+  settings
 ) {
 
   const targetLog =
@@ -764,10 +861,6 @@ function stateScore(
     );
 
 
-  const probabilityLoss =
-    -state.logProbability;
-
-
   const overshoot =
     Math.max(
       0,
@@ -776,25 +869,68 @@ function stateScore(
     );
 
 
-  /*
-   Penalize large numbers of selections.
+  const probabilityLoss =
+    -state.logProbability;
 
-   This discourages unnecessarily long slips.
+
+  /*
+   Fewer selections are preferred,
+   but not so strongly that the engine
+   is forced into poor odds.
   */
 
   const selectionPenalty =
     state.selections.length *
-    0.035;
+    0.08;
 
 
   /*
-   Reward stronger individual markets.
+   Market diversity reward.
   */
 
-  const averageRanking =
+  const marketTypes =
+    new Set(
+      state.selections.map(
+        selection =>
+          selection.marketFamily
+      )
+    );
+
+
+  const diversityReward =
+    marketTypes.size *
+    0.12;
+
+
+  /*
+   Competition diversity reward.
+  */
+
+  const competitions =
+    new Set(
+      state.selections.map(
+        selection =>
+          selection.competition
+      )
+    );
+
+
+  const competitionReward =
+    competitions.size *
+    0.06;
+
+
+  /*
+   Average quality.
+  */
+
+  const averageQuality =
     state.selections.length
       ? state.selections.reduce(
-          (sum, selection) =>
+          (
+            sum,
+            selection
+          ) =>
             sum +
             selection.rankingScore,
           0
@@ -804,19 +940,23 @@ function stateScore(
 
 
   const qualityReward =
-    averageRanking *
-    0.025;
+    averageQuality *
+    0.018;
 
 
   return (
 
-    distance * 20 +
+    distance * 24 +
 
-    probabilityLoss * 0.18 +
+    overshoot * 14 +
 
-    overshoot * 12 +
+    probabilityLoss * 0.16 +
 
     selectionPenalty -
+
+    diversityReward -
+
+    competitionReward -
 
     qualityReward
 
@@ -825,31 +965,56 @@ function stateScore(
 
 
 /* =========================================================
-   COMPLETED COMBINATION SCORE
+   CHECK COMBINATION LIMITS
    ========================================================= */
 
-function completedScore(
+function violatesCombinationLimits(
   state,
-  targetOdds
+  candidate,
+  settings
 ) {
 
-  const score =
-    stateScore(
-      state,
-      targetOdds
-    );
+  /*
+   Market family limit.
+  */
+
+  const sameMarketType =
+    state.selections.filter(
+      selection =>
+        selection.marketFamily ===
+        candidate.marketFamily
+    ).length;
+
+
+  if (
+    sameMarketType >=
+    settings.maxSameMarketType
+  ) {
+    return true;
+  }
 
 
   /*
-   Prefer combinations with fewer legs
-   when quality is otherwise similar.
+   Competition limit.
   */
 
-  return (
-    score +
-    state.selections.length *
-      0.05
-  );
+  const sameCompetition =
+    state.selections.filter(
+      selection =>
+        selection.competition ===
+        candidate.competition
+    ).length;
+
+
+  if (
+    sameCompetition >=
+    settings.maxSameCompetition
+  ) {
+    return true;
+  }
+
+
+  return false;
 }
 
 
@@ -899,6 +1064,7 @@ function buildCombination(
       logOdds: 0,
 
       logProbability: 0
+
     }
 
   ];
@@ -909,7 +1075,7 @@ function buildCombination(
 
 
   /*
-   Search progressively.
+   Progressive beam search.
   */
 
   for (
@@ -933,8 +1099,8 @@ function buildCombination(
       ) {
 
         /*
-         Never select two markets
-         from the same match.
+         Never use two selections
+         from the same event.
         */
 
         if (
@@ -947,8 +1113,22 @@ function buildCombination(
 
 
         /*
-         Prevent identical market
-         and selection duplicates.
+         Apply diversity limits.
+        */
+
+        if (
+          violatesCombinationLimits(
+            state,
+            candidate,
+            settings
+          )
+        ) {
+          continue;
+        }
+
+
+        /*
+         Unique market key.
         */
 
         const marketKey =
@@ -1037,7 +1217,7 @@ function buildCombination(
 
 
         /*
-         Reached target.
+         Target reached.
         */
 
         if (
@@ -1055,16 +1235,18 @@ function buildCombination(
           } else {
 
             const currentScore =
-              completedScore(
+              stateScore(
                 newState,
-                targetOdds
+                targetOdds,
+                settings
               );
 
 
             const bestScore =
-              completedScore(
+              stateScore(
                 bestCompleted,
-                targetOdds
+                targetOdds,
+                settings
               );
 
 
@@ -1086,13 +1268,12 @@ function buildCombination(
 
 
         /*
-         Do not explore combinations
-         that overshoot excessively.
+         Prevent huge overshoots.
         */
 
         if (
           combinedOdds >
-          targetOdds * 1.35
+          targetOdds * 1.30
         ) {
           continue;
         }
@@ -1115,24 +1296,31 @@ function buildCombination(
 
 
     /*
-     Remove near-identical states.
-
-     This allows the beam to contain
-     different probability/odds paths.
+     Rank states.
     */
 
     nextStates.sort(
       (a, b) =>
         stateScore(
           a,
-          targetOdds
+          targetOdds,
+          settings
         ) -
         stateScore(
           b,
-          targetOdds
+          targetOdds,
+          settings
         )
     );
 
+
+    /*
+     Keep diverse states.
+
+     Instead of keeping only one state for
+     each odds bucket, include different
+     market-type compositions.
+    */
 
     const uniqueStates = [];
 
@@ -1150,14 +1338,27 @@ function buildCombination(
         );
 
 
-      const bucket =
+      const oddsBucket =
         Math.round(
           odds * 100
         ) / 100;
 
 
+      const marketTypes =
+        [
+          ...new Set(
+            state.selections.map(
+              selection =>
+                selection.marketFamily
+            )
+          )
+        ]
+          .sort()
+          .join(",");
+
+
       const key =
-        `${bucket}:${state.selections.length}`;
+        `${oddsBucket}:${state.selections.length}:${marketTypes}`;
 
 
       if (
@@ -1190,8 +1391,7 @@ function buildCombination(
 
 
     /*
-     Stop when we have a very close
-     target solution.
+     Stop when target is extremely close.
     */
 
     if (
@@ -1214,7 +1414,7 @@ function buildCombination(
 
       if (
         relativeDifference <
-        0.003
+        0.002
       ) {
 
         break;
@@ -1288,11 +1488,8 @@ export function runProbabilityEngine(
 ) {
 
   const settings = {
-
     ...DEFAULTS,
-
     ...options
-
   };
 
 
@@ -1322,10 +1519,6 @@ export function runProbabilityEngine(
   }
 
 
-  /*
-   Prepare the complete candidate pool.
-  */
-
   const candidates =
     prepareCandidates(
       markets,
@@ -1345,7 +1538,7 @@ export function runProbabilityEngine(
         ENGINE_VERSION,
 
       error:
-        "No qualifying markets were found within the configured competition, probability, and odds filters.",
+        "No qualifying markets were found.",
 
       settings,
 
@@ -1356,10 +1549,6 @@ export function runProbabilityEngine(
 
   }
 
-
-  /*
-   Build optimized combination.
-  */
 
   const combination =
     buildCombination(
@@ -1394,8 +1583,57 @@ export function runProbabilityEngine(
 
 
   /*
-   Public response.
+   Count market families.
   */
+
+  const marketTypeCounts = {};
+
+
+  for (
+    const selection
+    of combination.selections
+  ) {
+
+    const family =
+      selection.marketFamily;
+
+
+    marketTypeCounts[family] =
+      (
+        marketTypeCounts[family] ||
+        0
+      ) + 1;
+
+  }
+
+
+  /*
+   Count competitions.
+  */
+
+  const competitionCounts = {};
+
+
+  for (
+    const selection
+    of combination.selections
+  ) {
+
+    const competition =
+      selection.competition;
+
+
+    competitionCounts[
+      competition
+    ] =
+      (
+        competitionCounts[
+          competition
+        ] || 0
+      ) + 1;
+
+  }
+
 
   return {
 
@@ -1415,6 +1653,10 @@ export function runProbabilityEngine(
 
     combination,
 
+    marketTypeCounts,
+
+    competitionCounts,
+
     selections:
       combination.selections.map(
         selection => ({
@@ -1427,6 +1669,9 @@ export function runProbabilityEngine(
 
           marketName:
             selection.marketName,
+
+          marketFamily:
+            selection.marketFamily,
 
           selection:
             selection.selection,
@@ -1446,8 +1691,14 @@ export function runProbabilityEngine(
           probabilityPercent:
             selection.probabilityPercent,
 
+          oddsValueScore:
+            selection.oddsValueScore,
+
           marketQuality:
             selection.marketQuality,
+
+          competitionQuality:
+            selection.competitionQuality,
 
           rankingScore:
             selection.rankingScore
@@ -1461,7 +1712,7 @@ export function runProbabilityEngine(
 
 
 /* =========================================================
-   EXPORT HELPERS
+   EXPORTS
    ========================================================= */
 
 export {
