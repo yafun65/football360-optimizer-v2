@@ -43,7 +43,7 @@ app.get("/", (req, res) => {
       "Football 360 Optimizer V2",
 
     engine:
-      "Probability Engine V2",
+      "Probability Engine V4.3",
 
     dataSource:
       OLD_API
@@ -51,6 +51,101 @@ app.get("/", (req, res) => {
   });
 
 });
+
+
+/* =========================================================
+   FETCH SPORTYBET CANDIDATE POOL
+   ========================================================= */
+
+async function fetchSportyBetCandidates(target) {
+
+  const url =
+    `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`;
+
+  console.log(
+    "Fetching SportyBet candidates:",
+    url
+  );
+
+
+  const response =
+    await fetch(url, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+
+  const text =
+    await response.text();
+
+
+  let data;
+
+
+  try {
+
+    data =
+      JSON.parse(text);
+
+  } catch {
+
+    throw new Error(
+      `Old SportyBet API returned invalid JSON. HTTP ${response.status}. Response: ${text.slice(0, 500)}`
+    );
+
+  }
+
+
+  console.log(
+    "Old SportyBet API HTTP status:",
+    response.status
+  );
+
+  console.log(
+    "Old SportyBet API success:",
+    data.success
+  );
+
+  console.log(
+    "Filtered candidates:",
+    Array.isArray(data.filteredCandidates)
+      ? data.filteredCandidates.length
+      : 0
+  );
+
+
+  /*
+     IMPORTANT:
+
+     We do NOT require data.success === true.
+
+     The old strategy engine can fail to create
+     its own combination while still returning the
+     complete filteredCandidates pool.
+
+     V2 needs the candidate pool, not the old
+     combination.
+  */
+
+  if (
+    !Array.isArray(
+      data.filteredCandidates
+    ) ||
+    data.filteredCandidates.length === 0
+  ) {
+
+    throw new Error(
+      data.error ||
+      "Old SportyBet API returned no candidate markets."
+    );
+
+  }
+
+
+  return data;
+
+}
 
 
 /* =========================================================
@@ -86,42 +181,10 @@ app.get(
       }
 
 
-      const response =
-        await fetch(
-          `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`
+      const data =
+        await fetchSportyBetCandidates(
+          target
         );
-
-
-      const text =
-        await response.text();
-
-
-      let data;
-
-
-      try {
-
-        data =
-          JSON.parse(text);
-
-      } catch {
-
-        return res.status(502).json({
-
-          success: false,
-
-          error:
-            "Old SportyBet API returned a non-JSON response.",
-
-          httpStatus:
-            response.status,
-
-          response:
-            text.slice(0, 1000)
-
-        });
-
-      }
 
 
       res.json({
@@ -131,11 +194,20 @@ app.get(
         source:
           OLD_API,
 
-        httpStatus:
-          response.status,
+        candidatesAvailable:
+          data.filteredCandidates.length,
 
-        oldApiResponse:
-          data
+        oldApiSuccess:
+          data.success,
+
+        oldApiError:
+          data.error || null,
+
+        targetOdds:
+          target,
+
+        engineVersion:
+          data.engineVersion || null
 
       });
 
@@ -288,111 +360,23 @@ app.get(
       }
 
 
-      const response =
-        await fetch(
-          `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`
+      /* ---------------------------------------------------
+         GET CANDIDATE POOL
+         --------------------------------------------------- */
+
+      const oldData =
+        await fetchSportyBetCandidates(
+          target
         );
 
 
-      const text =
-        await response.text();
+      const rawCandidates =
+        oldData.filteredCandidates;
 
 
-      let oldData;
-
-
-      try {
-
-        oldData =
-          JSON.parse(text);
-
-      } catch {
-
-        return res.status(502).json({
-
-          success: false,
-
-          error:
-            "Old SportyBet API returned invalid JSON.",
-
-          httpStatus:
-            response.status,
-
-          response:
-            text.slice(0, 1000)
-
-        });
-
-      }
-
-
-      if (
-        !response.ok ||
-        !oldData.success
-      ) {
-
-        return res.status(502).json({
-
-          success: false,
-
-          error:
-            "Old SportyBet API did not return successful data.",
-
-          httpStatus:
-            response.status,
-
-          oldApiResponse:
-            oldData
-
-        });
-
-      }
-
-
-      const rawCandidates = [];
-
-
-      if (
-        Array.isArray(
-          oldData.filteredCandidates
-        )
-      ) {
-
-        rawCandidates.push(
-          ...oldData.filteredCandidates
-        );
-
-      }
-
-
-      if (
-        rawCandidates.length === 0 &&
-        oldData.combination &&
-        Array.isArray(
-          oldData.combination.selections
-        )
-      ) {
-
-        rawCandidates.push(
-          ...oldData.combination.selections
-        );
-
-      }
-
-
-      if (
-        rawCandidates.length === 0 &&
-        Array.isArray(
-          oldData.topCandidates
-        )
-      ) {
-
-        rawCandidates.push(
-          ...oldData.topCandidates
-        );
-
-      }
-
+      /* ---------------------------------------------------
+         CONVERT + DEDUPE
+         --------------------------------------------------- */
 
       const uniqueMarkets =
         new Map();
@@ -449,12 +433,42 @@ app.get(
         );
 
 
+      console.log(
+        "Raw candidates:",
+        rawCandidates.length
+      );
+
+      console.log(
+        "Unique markets:",
+        markets.length
+      );
+
+
+      /* ---------------------------------------------------
+         RUN V4.3 PROBABILITY ENGINE
+         --------------------------------------------------- */
+
       const engine =
         runProbabilityEngine(
           markets,
           target
         );
 
+
+      console.log(
+        "V2 engine result:",
+        engine.success
+      );
+
+      console.log(
+        "V2 engine version:",
+        engine.engineVersion
+      );
+
+
+      /* ---------------------------------------------------
+         RETURN RESULT
+         --------------------------------------------------- */
 
       res.json({
 
@@ -478,6 +492,15 @@ app.get(
 
         uniqueMarkets:
           markets.length,
+
+        oldApiSuccess:
+          oldData.success,
+
+        oldApiEngineVersion:
+          oldData.engineVersion || null,
+
+        oldApiError:
+          oldData.error || null,
 
         engineVersion:
           engine.engineVersion,
