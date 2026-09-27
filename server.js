@@ -5,7 +5,8 @@
 
 import express from "express";
 import cors from "cors";
-const { startTelegramBot } = require("./telegramBot.js");
+import { startTelegramBot } from "./telegramBot.js";
+
 import {
   runProbabilityEngine
 } from "./probabilityEngine.js";
@@ -287,20 +288,6 @@ app.get(
       }
 
 
-      /*
-       * -----------------------------------------------------
-       * GET FULL FILTERED CANDIDATE POOL FROM OLD API
-       * -----------------------------------------------------
-       *
-       * includeCandidates=true is important.
-       *
-       * Without it, the old API only returns the old
-       * engine's selected combination/top candidates.
-       *
-       * With it, we receive the full filtered candidate
-       * pool.
-       */
-
       const response =
         await fetch(
           `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`
@@ -362,21 +349,8 @@ app.get(
       }
 
 
-      /*
-       * -----------------------------------------------------
-       * COLLECT FULL FILTERED CANDIDATE POOL
-       * -----------------------------------------------------
-       */
-
       const rawCandidates = [];
 
-
-      /*
-       * PRIMARY SOURCE:
-       *
-       * The old API now returns the full filtered pool
-       * through filteredCandidates.
-       */
 
       if (
         Array.isArray(
@@ -390,13 +364,6 @@ app.get(
 
       }
 
-
-      /*
-       * FALLBACK:
-       *
-       * If filteredCandidates is unavailable, use the old
-       * combination selections.
-       */
 
       if (
         rawCandidates.length === 0 &&
@@ -413,12 +380,6 @@ app.get(
       }
 
 
-      /*
-       * SECOND FALLBACK:
-       *
-       * If topCandidates exists, use it.
-       */
-
       if (
         rawCandidates.length === 0 &&
         Array.isArray(
@@ -432,12 +393,6 @@ app.get(
 
       }
 
-
-      /*
-       * -----------------------------------------------------
-       * CONVERT CANDIDATES TO V2 MARKET FORMAT
-       * -----------------------------------------------------
-       */
 
       const uniqueMarkets =
         new Map();
@@ -494,24 +449,12 @@ app.get(
         );
 
 
-      /*
-       * -----------------------------------------------------
-       * RUN V2 PROBABILITY ENGINE
-       * -----------------------------------------------------
-       */
-
       const engine =
         runProbabilityEngine(
           markets,
           target
         );
 
-
-      /*
-       * -----------------------------------------------------
-       * RESPONSE
-       * -----------------------------------------------------
-       */
 
       res.json({
 
@@ -586,117 +529,51 @@ app.get(
     const markets = [
 
       {
-
-        eventId:
-          "test-1",
-
-        eventName:
-          "Team A vs Team B",
-
-        marketName:
-          "Double Chance",
-
-        selection:
-          "Home or Away",
-
-        odds:
-          1.30
-
+        eventId: "test-1",
+        eventName: "Team A vs Team B",
+        marketName: "Double Chance",
+        selection: "Home or Away",
+        odds: 1.30
       },
 
       {
-
-        eventId:
-          "test-2",
-
-        eventName:
-          "Team C vs Team D",
-
-        marketName:
-          "Over/Under",
-
-        selection:
-          "Under 3.5",
-
-        odds:
-          1.40
-
+        eventId: "test-2",
+        eventName: "Team C vs Team D",
+        marketName: "Over/Under",
+        selection: "Under 3.5",
+        odds: 1.40
       },
 
       {
-
-        eventId:
-          "test-3",
-
-        eventName:
-          "Team E vs Team F",
-
-        marketName:
-          "Draw No Bet",
-
-        selection:
-          "Home",
-
-        odds:
-          1.50
-
+        eventId: "test-3",
+        eventName: "Team E vs Team F",
+        marketName: "Draw No Bet",
+        selection: "Home",
+        odds: 1.50
       },
 
       {
-
-        eventId:
-          "test-4",
-
-        eventName:
-          "Team G vs Team H",
-
-        marketName:
-          "Double Chance",
-
-        selection:
-          "Draw or Away",
-
-        odds:
-          1.60
-
+        eventId: "test-4",
+        eventName: "Team G vs Team H",
+        marketName: "Double Chance",
+        selection: "Draw or Away",
+        odds: 1.60
       },
 
       {
-
-        eventId:
-          "test-5",
-
-        eventName:
-          "Team I vs Team J",
-
-        marketName:
-          "Over/Under",
-
-        selection:
-          "Under 4.5",
-
-        odds:
-          1.35
-
+        eventId: "test-5",
+        eventName: "Team I vs Team J",
+        marketName: "Over/Under",
+        selection: "Under 4.5",
+        odds: 1.35
       },
 
       {
-
-        eventId:
-          "test-6",
-
-        eventName:
-          "Team K vs Team L",
-
-        marketName:
-          "Double Chance",
-
-        selection:
-          "Home or Away",
-
-        odds:
-          1.45
-
+        eventId: "test-6",
+        eventName: "Team K vs Team L",
+        marketName: "Double Chance",
+        selection: "Home or Away",
+        odds: 1.45
       }
 
     ];
@@ -729,4 +606,10 @@ app.listen(
 
   }
 );
+
+
+/* =========================================================
+   START TELEGRAM BOT
+   ========================================================= */
+
 startTelegramBot();
