@@ -2,6 +2,7 @@
    FOOTBALL 360 OPTIMIZER V2
    SERVER
    ========================================================= */
+
 import express from "express";
 import cors from "cors";
 
@@ -41,6 +42,8 @@ app.use(cors());
 app.use(
   express.json()
 );
+
+
 /* =========================================================
    HEALTH CHECK
    ========================================================= */
@@ -55,7 +58,7 @@ app.get("/", (req, res) => {
       "Football 360 Optimizer V2",
 
     engine:
-      "Probability Engine V4.3",
+      "Probability Engine V4.4",
 
     dataSource:
       OLD_API
@@ -63,6 +66,8 @@ app.get("/", (req, res) => {
   });
 
 });
+
+
 /* =========================================================
    FETCH SPORTYBET CANDIDATE POOL
    ========================================================= */
@@ -70,19 +75,13 @@ app.get("/", (req, res) => {
 async function fetchSportyBetCandidates(target) {
 
   /*
-     IMPORTANT:
+     The old STRATEGY_ENGINE_V3 should NOT receive
+     the user's final target.
 
-     The old STRATEGY_ENGINE_V3 should NOT receive the
-     user's final target.
+     We use a stable candidate-pool target of 10x
+     so the old API returns its filtered markets.
 
-     For example, if the user requests 100x, the old
-     engine may reject 100x before returning its
-     candidate pool.
-
-     V2/V4.3 is responsible for building the final target.
-
-     Therefore we use a stable candidate-pool target that
-     is known to return the full filtered SportyBet markets.
+     V4.4 is responsible for building the final target.
   */
 
   const candidatePoolTarget = 10;
@@ -158,18 +157,6 @@ async function fetchSportyBetCandidates(target) {
   );
 
 
-  /*
-     We intentionally do NOT require:
-
-       data.success === true
-
-     because the old engine's own combination may fail
-     while its candidate pool is still usable.
-
-     V4.3 is the engine responsible for the final
-     optimization.
-  */
-
   if (
     !Array.isArray(
       data.filteredCandidates
@@ -188,6 +175,8 @@ async function fetchSportyBetCandidates(target) {
   return data;
 
 }
+
+
 /* =========================================================
    API-FOOTBALL STATISTICS TEST
    ========================================================= */
@@ -229,8 +218,10 @@ app.get(
 
   }
 );
+
+
 /* =========================================================
-   API-FOOTBALL STATISTICS TEST
+   API-FOOTBALL TEAM STATISTICS TEST
    ========================================================= */
 
 app.get(
@@ -303,419 +294,8 @@ app.get(
 
   }
 );
-/* =========================================================
-   MARKET VS STATISTICS TEST
-   ========================================================= */
 
-app.get(
-  "/market-stats-test",
-  async (req, res) => {
 
-    try {
-
-      const homeTeamId =
-        Number(req.query.home);
-
-      const awayTeamId =
-        Number(req.query.away);
-
-      const odds =
-        Number(req.query.odds);
-
-      const pick =
-        String(
-          req.query.pick || ""
-        );
-
-      if (
-        !homeTeamId ||
-        !awayTeamId ||
-        !odds ||
-        !pick
-      ) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          error:
-            "Provide home, away, odds and pick."
-
-        });
-
-      }
-
-      const analysis =
-        await analyzeMatchStats(
-          homeTeamId,
-          awayTeamId
-        );
-
-      const comparison =
-        compareMarketWithStats(
-          {
-            odds,
-            pick
-          },
-          analysis
-        );
-
-      res.json({
-
-        success: true,
-
-        homeTeamId,
-
-        awayTeamId,
-
-        market: {
-          pick,
-          odds
-        },
-
-        comparison
-
-      });
-
-    } catch (error) {
-
-      console.error(
-        "Market statistics error:",
-        error
-      );
-
-      res.status(500).json({
-
-        success: false,
-
-        error:
-          error.message ||
-          "Unable to compare market with statistics."
-
-      });
-
-    }
-
-  }
-);/* =========================================================
-   MARKET VS STATISTICS TEST
-   ========================================================= */
-
-app.get(
-  "/market-stats-test",
-  async (req, res) => {
-
-    try {
-
-      const homeTeamId =
-        Number(req.query.home);
-
-      const awayTeamId =
-        Number(req.query.away);
-
-      const odds =
-        Number(req.query.odds);
-
-      const pick =
-        String(
-          req.query.pick || ""
-        );
-
-      if (
-        !homeTeamId ||
-        !awayTeamId ||
-        !odds ||
-        !pick
-      ) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          error:
-            "Provide home, away, odds and pick."
-
-        });
-
-      }
-
-      const analysis =
-        await analyzeMatchStats(
-          homeTeamId,
-          awayTeamId
-        );
-
-      const comparison =
-        compareMarketWithStats(
-          {
-            odds,
-            pick
-          },
-          analysis
-        );
-
-      res.json({
-
-        success: true,
-
-        homeTeamId,
-
-        awayTeamId,
-
-        market: {
-          pick,
-          odds
-        },
-
-        comparison
-
-      });
-
-    } catch (error) {
-
-      console.error(
-        "Market statistics error:",
-        error
-      );
-
-      res.status(500).json({
-
-        success: false,
-
-        error:
-          error.message ||
-          "Unable to compare market with statistics."
-
-      });
-
-    }
-
-  }
-);/* =========================================================
-   COMPARE SPORTYBET MARKET WITH STATISTICAL PROBABILITY
-   ========================================================= */
-
-export function compareMarketWithStats(
-  market,
-  statisticalAnalysis
-) {
-
-  if (
-    !market ||
-    !statisticalAnalysis?.probabilities
-  ) {
-
-    throw new Error(
-      "Market and statistical analysis are required."
-    );
-
-  }
-
-  const odds =
-    Number(market.odds);
-
-  if (
-    !odds ||
-    odds <= 1
-  ) {
-
-    throw new Error(
-      "A valid market odds value is required."
-    );
-
-  }
-
-  const impliedProbability =
-    1 / odds;
-
-  const pick =
-    String(
-      market.pick ||
-      ""
-    ).toLowerCase();
-
-  let statisticalProbability =
-    null;
-
-  /*
-   * MAP SPORTYBET PICKS TO
-   * STATISTICAL PROBABILITIES
-   */
-
-  if (
-    pick === "home" ||
-    pick === "1"
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .homeWin;
-
-  } else if (
-    pick === "draw" ||
-    pick === "x"
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .draw;
-
-  } else if (
-    pick === "away" ||
-    pick === "2"
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .awayWin;
-
-  } else if (
-    pick.includes("home") &&
-    pick.includes("draw")
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .homeOrDraw;
-
-  } else if (
-    pick.includes("draw") &&
-    pick.includes("away")
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .awayOrDraw;
-
-  } else if (
-    pick.includes("btts") &&
-    pick.includes("yes")
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .btts;
-
-  } else if (
-    pick.includes("over") &&
-    (
-      pick.includes("2.5") ||
-      pick.includes("2,5")
-    )
-  ) {
-
-    statisticalProbability =
-      statisticalAnalysis
-        .probabilities
-        .over25;
-
-  }
-
-  /*
-   * IF WE DON'T RECOGNIZE THE MARKET,
-   * RETURN A NEUTRAL RESULT.
-   */
-
-  if (
-    statisticalProbability === null
-  ) {
-
-    return {
-
-      supported: false,
-
-      reason:
-        "Market type is not yet supported by the statistical model.",
-
-      odds,
-
-      impliedProbability:
-        Number(
-          impliedProbability.toFixed(4)
-        ),
-
-      statisticalProbability:
-        null,
-
-      probabilityDifference:
-        null
-
-    };
-
-  }
-
-  const probabilityDifference =
-    statisticalProbability -
-    impliedProbability;
-
-  /*
-   * SUPPORT LEVEL
-   *
-   * Positive difference means the
-   * statistical model gives the
-   * selection a higher probability
-   * than the market implies.
-   */
-
-  let support =
-    "LOW";
-
-  if (
-    probabilityDifference >= 0.08
-  ) {
-
-    support =
-      "STRONG";
-
-  } else if (
-    probabilityDifference >= 0.03
-  ) {
-
-    support =
-      "MODERATE";
-
-  } else if (
-    probabilityDifference >= 0
-  ) {
-
-    support =
-      "SLIGHT";
-
-  }
-
-  return {
-
-    supported:
-      probabilityDifference >= 0,
-
-    support,
-
-    odds,
-
-    impliedProbability:
-      Number(
-        impliedProbability.toFixed(4)
-      ),
-
-    statisticalProbability:
-      Number(
-        statisticalProbability.toFixed(4)
-      ),
-
-    probabilityDifference:
-      Number(
-        probabilityDifference.toFixed(4)
-      )
-
-  };
-
-}
 /* =========================================================
    FOOTBALL-DATA.ORG TEST
    ========================================================= */
@@ -757,6 +337,8 @@ app.get(
 
   }
 );
+
+
 /* =========================================================
    FOOTBALL-DATA.ORG TEAM FORM TEST
    ========================================================= */
@@ -817,6 +399,8 @@ app.get(
 
   }
 );
+
+
 /* =========================================================
    FOOTBALL-DATA.ORG MATCH ANALYSIS TEST
    ========================================================= */
@@ -883,6 +467,105 @@ app.get(
 
   }
 );
+
+
+/* =========================================================
+   MARKET VS STATISTICS TEST
+   ========================================================= */
+
+app.get(
+  "/market-stats-test",
+  async (req, res) => {
+
+    try {
+
+      const homeTeamId =
+        Number(req.query.home);
+
+      const awayTeamId =
+        Number(req.query.away);
+
+      const odds =
+        Number(req.query.odds);
+
+      const pick =
+        String(
+          req.query.pick || ""
+        );
+
+      if (
+        !homeTeamId ||
+        !awayTeamId ||
+        !odds ||
+        !pick
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide home, away, odds and pick."
+
+        });
+
+      }
+
+      const analysis =
+        await analyzeMatchStats(
+          homeTeamId,
+          awayTeamId
+        );
+
+      const comparison =
+        compareMarketWithStats(
+          {
+            odds,
+            pick
+          },
+          analysis
+        );
+
+      res.json({
+
+        success: true,
+
+        homeTeamId,
+
+        awayTeamId,
+
+        market: {
+          pick,
+          odds
+        },
+
+        comparison
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Market statistics error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        error:
+          error.message ||
+          "Unable to compare market with statistics."
+
+      });
+
+    }
+
+  }
+);
+
+
 /* =========================================================
    FOOTBALL-DATA.ORG PREMIER LEAGUE MATCHES TEST
    ========================================================= */
@@ -946,6 +629,8 @@ app.get(
 
   }
 );
+
+
 /* =========================================================
    SPORTYBET API CONNECTION TEST
    ========================================================= */
@@ -1125,6 +810,10 @@ function convertCandidateToMarket(
 }
 
 
+/* =========================================================
+   MAIN OPTIMIZER
+   ========================================================= */
+
 app.get(
   "/optimize",
   async (req, res) => {
@@ -1239,7 +928,7 @@ app.get(
 
 
       /* ---------------------------------------------------
-         RUN V4.3 PROBABILITY ENGINE
+         RUN V4.4 PROBABILITY ENGINE
          --------------------------------------------------- */
 
       const engine =
@@ -1349,10 +1038,12 @@ app.get(
             } catch {
 
               bookingData = {
+
                 success: false,
 
                 error:
                   "Booking API returned non-JSON."
+
               };
 
             }
@@ -1417,7 +1108,7 @@ app.get(
             success: false,
 
             error:
-              "Some V4.3 selections are missing SportyBet booking fields."
+              "Some V4.4 selections are missing SportyBet booking fields."
 
           };
 
