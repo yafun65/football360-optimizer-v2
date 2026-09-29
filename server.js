@@ -29,7 +29,13 @@ import {
 
 const OLD_API =
   "https://sportybet-api.onrender.com";
+const app = express();
 
+app.use(cors());
+
+app.use(
+  express.json()
+);
 /* =========================================================
    HEALTH CHECK
    ========================================================= */
