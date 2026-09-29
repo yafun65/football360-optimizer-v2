@@ -344,6 +344,69 @@ app.get(
   }
 );
 /* =========================================================
+   FOOTBALL-DATA.ORG PREMIER LEAGUE MATCHES TEST
+   ========================================================= */
+
+app.get(
+  "/football-data-matches-test",
+  async (req, res) => {
+
+    try {
+
+      const data =
+        await getCompetitionMatches(
+          "PL"
+        );
+
+      res.json({
+
+        success: true,
+
+        provider:
+          "Football-Data.org",
+
+        competition:
+          "Premier League",
+
+        season:
+          data?.filters?.season ||
+          null,
+
+        resultSet:
+          data?.resultSet ||
+          null,
+
+        matches:
+          data?.matches ||
+          []
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Football-Data.org matches error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        provider:
+          "Football-Data.org",
+
+        error:
+          error.message ||
+          "Unable to retrieve matches."
+
+      });
+
+    }
+
+  }
+);
+/* =========================================================
    SPORTYBET API CONNECTION TEST
    ========================================================= */
 
