@@ -143,7 +143,227 @@ export async function getCompetitionMatches(
   );
 
 }
+/* =========================================================
+   GET RECENT TEAM FORM
+   ========================================================= */
 
+export async function getRecentTeamForm(
+  teamId,
+  limit = 5
+) {
+
+  const data =
+    await getFootballDataTeamMatches(
+      teamId,
+      {
+        status: "FINISHED",
+        limit: 10
+      }
+    );
+
+  const matches =
+    Array.isArray(data?.matches)
+      ? data.matches
+      : [];
+
+  const recentMatches =
+    matches
+      .filter(
+        match =>
+          match?.status === "FINISHED" &&
+          match?.score?.fullTime?.home !== null &&
+          match?.score?.fullTime?.away !== null
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.utcDate) -
+          new Date(a.utcDate)
+      )
+      .slice(0, limit);
+
+  const form = [];
+
+  for (const match of recentMatches) {
+
+    const isHome =
+      Number(match.homeTeam?.id) ===
+      Number(teamId);
+
+    const teamGoals =
+      isHome
+        ? match.score.fullTime.home
+        : match.score.fullTime.away;
+
+    const opponentGoals =
+      isHome
+        ? match.score.fullTime.away
+        : match.score.fullTime.home;
+
+    let result = "D";
+
+    if (teamGoals > opponentGoals) {
+      result = "W";
+    }
+
+    if (teamGoals < opponentGoals) {
+      result = "L";
+    }
+
+    form.push({
+
+      matchId:
+        match.id,
+
+      date:
+        match.utcDate,
+
+      opponent:
+        isHome
+          ? match.awayTeam?.name
+          : match.homeTeam?.name,
+
+      homeAway:
+        isHome
+          ? "HOME"
+          : "AWAY",
+
+      goalsFor:
+        teamGoals,
+
+      goalsAgainst:
+        opponentGoals,
+
+      result,
+
+      cleanSheet:
+        opponentGoals === 0,
+
+      failedToScore:
+        teamGoals === 0
+
+    });
+
+  }
+
+  const matchesPlayed =
+    form.length;
+
+  const wins =
+    form.filter(
+      item => item.result === "W"
+    ).length;
+
+  const draws =
+    form.filter(
+      item => item.result === "D"
+    ).length;
+
+  const losses =
+    form.filter(
+      item => item.result === "L"
+    ).length;
+
+  const goalsFor =
+    form.reduce(
+      (total, item) =>
+        total + Number(item.goalsFor || 0),
+      0
+    );
+
+  const goalsAgainst =
+    form.reduce(
+      (total, item) =>
+        total + Number(item.goalsAgainst || 0),
+      0
+    );
+
+  const cleanSheets =
+    form.filter(
+      item => item.cleanSheet
+    ).length;
+
+  const failedToScore =
+    form.filter(
+      item => item.failedToScore
+    ).length;
+
+  return {
+
+    success: true,
+
+    teamId:
+      Number(teamId),
+
+    matchesPlayed,
+
+    wins,
+
+    draws,
+
+    losses,
+
+    points:
+      (wins * 3) + draws,
+
+    goalsFor,
+
+    goalsAgainst,
+
+    goalsForPerGame:
+      matchesPlayed
+        ? Number(
+            (
+              goalsFor /
+              matchesPlayed
+            ).toFixed(2)
+          )
+        : 0,
+
+    goalsAgainstPerGame:
+      matchesPlayed
+        ? Number(
+            (
+              goalsAgainst /
+              matchesPlayed
+            ).toFixed(2)
+          )
+        : 0,
+
+    cleanSheets,
+
+    cleanSheetRate:
+      matchesPlayed
+        ? Number(
+            (
+              cleanSheets /
+              matchesPlayed
+            ).toFixed(3)
+          )
+        : 0,
+
+    failedToScore,
+
+    failedToScoreRate:
+      matchesPlayed
+        ? Number(
+            (
+              failedToScore /
+              matchesPlayed
+            ).toFixed(3)
+          )
+        : 0,
+
+    formString:
+      form
+        .map(item => item.result)
+        .join(""),
+
+    matches:
+      form
+
+  };
+
+       }
 
 /* =========================================================
    GET COMPETITION STANDINGS
