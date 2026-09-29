@@ -381,6 +381,7 @@ app.get("/match-team-resolver-test", async (req, res) => {
         "Unable to resolve both teams."
 
     });
+     });
 
 /* =========================================================
    API-FOOTBALL TEAM STATISTICS TEST
