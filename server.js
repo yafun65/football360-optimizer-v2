@@ -327,10 +327,6 @@ function convertCandidateToMarket(
 }
 
 
-/* =========================================================
-   OPTIMIZE
-   ========================================================= */
-
 app.get(
   "/optimize",
   async (req, res) => {
@@ -467,6 +463,172 @@ app.get(
 
 
       /* ---------------------------------------------------
+         CREATE SPORTYBET BOOKING
+         --------------------------------------------------- */
+
+      let booking = null;
+
+
+      if (
+        engine.success &&
+        Array.isArray(
+          engine.selections
+        ) &&
+        engine.selections.length
+      ) {
+
+        const bookingSelections =
+          engine.selections
+            .map(item => ({
+
+              eventId:
+                item.eventId,
+
+              marketId:
+                item.marketId,
+
+              specifier:
+                item.specifier ??
+                null,
+
+              outcomeId:
+                item.outcomeId
+
+            }))
+            .filter(item =>
+              item.eventId &&
+              item.marketId &&
+              item.outcomeId
+            );
+
+
+        console.log(
+          "Booking selections:",
+          bookingSelections.length
+        );
+
+
+        if (
+          bookingSelections.length ===
+          engine.selections.length
+        ) {
+
+          try {
+
+            const bookingResponse =
+              await fetch(
+                `${OLD_API}/create-booking`,
+                {
+                  method: "POST",
+
+                  headers: {
+                    "Content-Type":
+                      "application/json"
+                  },
+
+                  body:
+                    JSON.stringify({
+                      selections:
+                        bookingSelections
+                    })
+                }
+              );
+
+
+            const bookingRaw =
+              await bookingResponse.text();
+
+
+            let bookingData;
+
+            try {
+
+              bookingData =
+                JSON.parse(
+                  bookingRaw
+                );
+
+            } catch {
+
+              bookingData = {
+                success: false,
+
+                error:
+                  "Booking API returned non-JSON."
+              };
+
+            }
+
+
+            if (
+              bookingResponse.ok &&
+              bookingData?.success
+            ) {
+
+              booking =
+                bookingData;
+
+              console.log(
+                "SportyBet booking created:",
+                booking.shareCode
+              );
+
+            } else {
+
+              booking = {
+
+                success: false,
+
+                error:
+                  bookingData?.error ||
+                  "SportyBet booking creation failed."
+
+              };
+
+              console.error(
+                "Booking creation failed:",
+                bookingData
+              );
+
+            }
+
+
+          } catch (bookingError) {
+
+            booking = {
+
+              success: false,
+
+              error:
+                bookingError.message ||
+                "Unable to connect to booking API."
+
+            };
+
+            console.error(
+              "Booking request error:",
+              bookingError
+            );
+
+          }
+
+        } else {
+
+          booking = {
+
+            success: false,
+
+            error:
+              "Some V4.3 selections are missing SportyBet booking fields."
+
+          };
+
+        }
+
+      }
+
+
+      /* ---------------------------------------------------
          RETURN RESULT
          --------------------------------------------------- */
 
@@ -506,7 +668,10 @@ app.get(
           engine.engineVersion,
 
         engineResult:
-          engine
+          engine,
+
+        booking:
+          booking
 
       });
 
@@ -530,86 +695,6 @@ app.get(
       });
 
     }
-
-  }
-);
-
-
-/* =========================================================
-   SIMPLE ENGINE TEST
-   ========================================================= */
-
-app.get(
-  "/test-engine",
-  (req, res) => {
-
-    const target =
-      Number(
-        req.query.target || 10
-      );
-
-
-    const markets = [
-
-      {
-        eventId: "test-1",
-        eventName: "Team A vs Team B",
-        marketName: "Double Chance",
-        selection: "Home or Away",
-        odds: 1.30
-      },
-
-      {
-        eventId: "test-2",
-        eventName: "Team C vs Team D",
-        marketName: "Over/Under",
-        selection: "Under 3.5",
-        odds: 1.40
-      },
-
-      {
-        eventId: "test-3",
-        eventName: "Team E vs Team F",
-        marketName: "Draw No Bet",
-        selection: "Home",
-        odds: 1.50
-      },
-
-      {
-        eventId: "test-4",
-        eventName: "Team G vs Team H",
-        marketName: "Double Chance",
-        selection: "Draw or Away",
-        odds: 1.60
-      },
-
-      {
-        eventId: "test-5",
-        eventName: "Team I vs Team J",
-        marketName: "Over/Under",
-        selection: "Under 4.5",
-        odds: 1.35
-      },
-
-      {
-        eventId: "test-6",
-        eventName: "Team K vs Team L",
-        marketName: "Double Chance",
-        selection: "Home or Away",
-        odds: 1.45
-      }
-
-    ];
-
-
-    const result =
-      runProbabilityEngine(
-        markets,
-        target
-      );
-
-
-    res.json(result);
 
   }
 );
