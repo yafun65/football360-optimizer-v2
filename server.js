@@ -231,7 +231,80 @@ app.get(
 
   }
 );
+/* =========================================================
+   API-FOOTBALL STATISTICS TEST
+   ========================================================= */
 
+app.get(
+  "/team-stats-test",
+  async (req, res) => {
+
+    try {
+
+      const teamId =
+        Number(req.query.team);
+
+      const leagueId =
+        Number(req.query.league);
+
+      const season =
+        Number(req.query.season);
+
+      if (
+        !teamId ||
+        !leagueId ||
+        !season
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide team, league and season."
+
+        });
+
+      }
+
+      const data =
+        await getTeamStats(
+          teamId,
+          leagueId,
+          season
+        );
+
+      res.json({
+
+        success: true,
+
+        provider:
+          "API-Football",
+
+        data
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Team statistics error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        error:
+          error.message
+
+      });
+
+    }
+
+  }
+);
 /* =========================================================
    SPORTYBET API CONNECTION TEST
    ========================================================= */
