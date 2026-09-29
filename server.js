@@ -2,6 +2,23 @@
    FOOTBALL 360 OPTIMIZER V2
    SERVER
    ========================================================= */
+
+import express from "express";
+import cors from "cors";
+
+import {
+  startTelegramBot
+} from "./telegramBot.js";
+
+import {
+  runProbabilityEngine
+} from "./probabilityEngine.js";
+
+import {
+  testStatsConnection,
+  getTeamStats
+} from "./statsEngine.js";
+
 import {
   testFootballDataConnection,
   getCompetitionMatches,
@@ -10,29 +27,8 @@ import {
   getRecentTeamForm
 } from "./footballDataEngine.js";
 
-import {
-  testStatsConnection,
-  getTeamStats
-} from "./statsEngine.js";
-
-
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-const PORT =
-  process.env.PORT || 3000;
-
-
-/* =========================================================
-   EXISTING WORKING SPORTYBET API
-   ========================================================= */
-
 const OLD_API =
   "https://sportybet-api.onrender.com";
-
 
 /* =========================================================
    HEALTH CHECK
