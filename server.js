@@ -15,7 +15,12 @@ import {
   getTeamStats
 } from "./statsEngine.js";
 
-
+import {
+  testFootballDataConnection,
+  getCompetitionMatches,
+  getCompetitionStandings,
+  getFootballDataTeamMatches
+} from "./footballDataEngine.js";
 
 const app = express();
 
@@ -289,6 +294,48 @@ app.get(
 
         error:
           error.message
+
+      });
+
+    }
+
+  }
+);
+
+/* =========================================================
+   FOOTBALL-DATA.ORG TEST
+   ========================================================= */
+
+app.get(
+  "/football-data-test",
+  async (req, res) => {
+
+    try {
+
+      const result =
+        await testFootballDataConnection();
+
+      res.json(
+        result
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Football-Data.org test error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        provider:
+          "Football-Data.org",
+
+        error:
+          error.message ||
+          "Football-Data.org connection failed."
 
       });
 
