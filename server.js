@@ -25,7 +25,8 @@ import {
   getCompetitionStandings,
   getFootballDataTeamMatches,
   getRecentTeamForm,
-  analyzeMatchStats
+  analyzeMatchStats,
+  compareMarketWithStats
 } from "./footballDataEngine.js";
 
 const OLD_API =
@@ -303,7 +304,419 @@ app.get(
 
   }
 );
+/* =========================================================
+   MARKET VS STATISTICS TEST
+   ========================================================= */
 
+app.get(
+  "/market-stats-test",
+  async (req, res) => {
+
+    try {
+
+      const homeTeamId =
+        Number(req.query.home);
+
+      const awayTeamId =
+        Number(req.query.away);
+
+      const odds =
+        Number(req.query.odds);
+
+      const pick =
+        String(
+          req.query.pick || ""
+        );
+
+      if (
+        !homeTeamId ||
+        !awayTeamId ||
+        !odds ||
+        !pick
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide home, away, odds and pick."
+
+        });
+
+      }
+
+      const analysis =
+        await analyzeMatchStats(
+          homeTeamId,
+          awayTeamId
+        );
+
+      const comparison =
+        compareMarketWithStats(
+          {
+            odds,
+            pick
+          },
+          analysis
+        );
+
+      res.json({
+
+        success: true,
+
+        homeTeamId,
+
+        awayTeamId,
+
+        market: {
+          pick,
+          odds
+        },
+
+        comparison
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Market statistics error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        error:
+          error.message ||
+          "Unable to compare market with statistics."
+
+      });
+
+    }
+
+  }
+);/* =========================================================
+   MARKET VS STATISTICS TEST
+   ========================================================= */
+
+app.get(
+  "/market-stats-test",
+  async (req, res) => {
+
+    try {
+
+      const homeTeamId =
+        Number(req.query.home);
+
+      const awayTeamId =
+        Number(req.query.away);
+
+      const odds =
+        Number(req.query.odds);
+
+      const pick =
+        String(
+          req.query.pick || ""
+        );
+
+      if (
+        !homeTeamId ||
+        !awayTeamId ||
+        !odds ||
+        !pick
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide home, away, odds and pick."
+
+        });
+
+      }
+
+      const analysis =
+        await analyzeMatchStats(
+          homeTeamId,
+          awayTeamId
+        );
+
+      const comparison =
+        compareMarketWithStats(
+          {
+            odds,
+            pick
+          },
+          analysis
+        );
+
+      res.json({
+
+        success: true,
+
+        homeTeamId,
+
+        awayTeamId,
+
+        market: {
+          pick,
+          odds
+        },
+
+        comparison
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Market statistics error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        error:
+          error.message ||
+          "Unable to compare market with statistics."
+
+      });
+
+    }
+
+  }
+);/* =========================================================
+   COMPARE SPORTYBET MARKET WITH STATISTICAL PROBABILITY
+   ========================================================= */
+
+export function compareMarketWithStats(
+  market,
+  statisticalAnalysis
+) {
+
+  if (
+    !market ||
+    !statisticalAnalysis?.probabilities
+  ) {
+
+    throw new Error(
+      "Market and statistical analysis are required."
+    );
+
+  }
+
+  const odds =
+    Number(market.odds);
+
+  if (
+    !odds ||
+    odds <= 1
+  ) {
+
+    throw new Error(
+      "A valid market odds value is required."
+    );
+
+  }
+
+  const impliedProbability =
+    1 / odds;
+
+  const pick =
+    String(
+      market.pick ||
+      ""
+    ).toLowerCase();
+
+  let statisticalProbability =
+    null;
+
+  /*
+   * MAP SPORTYBET PICKS TO
+   * STATISTICAL PROBABILITIES
+   */
+
+  if (
+    pick === "home" ||
+    pick === "1"
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .homeWin;
+
+  } else if (
+    pick === "draw" ||
+    pick === "x"
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .draw;
+
+  } else if (
+    pick === "away" ||
+    pick === "2"
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .awayWin;
+
+  } else if (
+    pick.includes("home") &&
+    pick.includes("draw")
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .homeOrDraw;
+
+  } else if (
+    pick.includes("draw") &&
+    pick.includes("away")
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .awayOrDraw;
+
+  } else if (
+    pick.includes("btts") &&
+    pick.includes("yes")
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .btts;
+
+  } else if (
+    pick.includes("over") &&
+    (
+      pick.includes("2.5") ||
+      pick.includes("2,5")
+    )
+  ) {
+
+    statisticalProbability =
+      statisticalAnalysis
+        .probabilities
+        .over25;
+
+  }
+
+  /*
+   * IF WE DON'T RECOGNIZE THE MARKET,
+   * RETURN A NEUTRAL RESULT.
+   */
+
+  if (
+    statisticalProbability === null
+  ) {
+
+    return {
+
+      supported: false,
+
+      reason:
+        "Market type is not yet supported by the statistical model.",
+
+      odds,
+
+      impliedProbability:
+        Number(
+          impliedProbability.toFixed(4)
+        ),
+
+      statisticalProbability:
+        null,
+
+      probabilityDifference:
+        null
+
+    };
+
+  }
+
+  const probabilityDifference =
+    statisticalProbability -
+    impliedProbability;
+
+  /*
+   * SUPPORT LEVEL
+   *
+   * Positive difference means the
+   * statistical model gives the
+   * selection a higher probability
+   * than the market implies.
+   */
+
+  let support =
+    "LOW";
+
+  if (
+    probabilityDifference >= 0.08
+  ) {
+
+    support =
+      "STRONG";
+
+  } else if (
+    probabilityDifference >= 0.03
+  ) {
+
+    support =
+      "MODERATE";
+
+  } else if (
+    probabilityDifference >= 0
+  ) {
+
+    support =
+      "SLIGHT";
+
+  }
+
+  return {
+
+    supported:
+      probabilityDifference >= 0,
+
+    support,
+
+    odds,
+
+    impliedProbability:
+      Number(
+        impliedProbability.toFixed(4)
+      ),
+
+    statisticalProbability:
+      Number(
+        statisticalProbability.toFixed(4)
+      ),
+
+    probabilityDifference:
+      Number(
+        probabilityDifference.toFixed(4)
+      )
+
+  };
+
+}
 /* =========================================================
    FOOTBALL-DATA.ORG TEST
    ========================================================= */
