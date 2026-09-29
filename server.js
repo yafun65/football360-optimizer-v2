@@ -25,11 +25,12 @@ import {
   getCompetitionStandings,
   getFootballDataTeamMatches,
   getRecentTeamForm,
-    analyzeMatchStats,
+  analyzeMatchStats,
   compareMarketWithStats,
-    scoreMarketsWithStatistics,
+  scoreMarketsWithStatistics,
   resolveFootballDataTeamId
 } from "./footballDataEngine.js";
+
 
 const OLD_API =
   "https://sportybet-api.onrender.com";
@@ -221,6 +222,7 @@ app.get(
   }
 );
 
+
 /* =========================================================
    TEAM NAME RESOLVER TEST
    ========================================================= */
@@ -241,6 +243,7 @@ app.get(
           req.query.competition || ""
         );
 
+
       if (
         !team ||
         !competition
@@ -257,11 +260,13 @@ app.get(
 
       }
 
+
       const teamId =
         await resolveFootballDataTeamId(
           team,
           competition
         );
+
 
       res.json({
 
@@ -276,12 +281,14 @@ app.get(
 
       });
 
+
     } catch (error) {
 
       console.error(
         "Team resolver error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -297,6 +304,8 @@ app.get(
 
   }
 );
+
+
 /* =========================================================
    API-FOOTBALL TEAM STATISTICS TEST
    ========================================================= */
@@ -308,13 +317,20 @@ app.get(
     try {
 
       const teamId =
-        Number(req.query.team);
+        Number(
+          req.query.team
+        );
 
       const leagueId =
-        Number(req.query.league);
+        Number(
+          req.query.league
+        );
 
       const season =
-        Number(req.query.season);
+        Number(
+          req.query.season
+        );
+
 
       if (
         !teamId ||
@@ -333,12 +349,14 @@ app.get(
 
       }
 
+
       const data =
         await getTeamStats(
           teamId,
           leagueId,
           season
         );
+
 
       res.json({
 
@@ -351,12 +369,14 @@ app.get(
 
       });
 
+
     } catch (error) {
 
       console.error(
         "Team statistics error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -371,6 +391,8 @@ app.get(
 
   }
 );
+
+
 /* =========================================================
    BATCH STATISTICAL SCORING TEST
    ========================================================= */
@@ -382,18 +404,25 @@ app.get(
     try {
 
       const homeTeamId =
-        Number(req.query.home);
+        Number(
+          req.query.home
+        );
 
       const awayTeamId =
-        Number(req.query.away);
+        Number(
+          req.query.away
+        );
 
       const odds =
-        Number(req.query.odds);
+        Number(
+          req.query.odds
+        );
 
       const pick =
         String(
           req.query.pick || ""
         );
+
 
       if (
         !homeTeamId ||
@@ -413,9 +442,11 @@ app.get(
 
       }
 
+
       const result =
         await scoreMarketsWithStatistics([
           {
+
             eventName:
               "Statistical Test",
 
@@ -426,10 +457,15 @@ app.get(
             odds,
 
             pick
+
           }
         ]);
 
-      res.json(result);
+
+      res.json(
+        result
+      );
+
 
     } catch (error) {
 
@@ -437,6 +473,7 @@ app.get(
         "Batch statistical scoring error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -452,6 +489,7 @@ app.get(
 
   }
 );
+
 
 /* =========================================================
    FOOTBALL-DATA.ORG TEST
@@ -470,12 +508,14 @@ app.get(
         result
       );
 
+
     } catch (error) {
 
       console.error(
         "Football-Data.org test error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -507,7 +547,10 @@ app.get(
     try {
 
       const teamId =
-        Number(req.query.team);
+        Number(
+          req.query.team
+        );
+
 
       if (!teamId) {
 
@@ -522,15 +565,18 @@ app.get(
 
       }
 
+
       const result =
         await getRecentTeamForm(
           teamId,
           5
         );
 
+
       res.json(
         result
       );
+
 
     } catch (error) {
 
@@ -538,6 +584,7 @@ app.get(
         "Team form error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -569,10 +616,15 @@ app.get(
     try {
 
       const homeTeamId =
-        Number(req.query.home);
+        Number(
+          req.query.home
+        );
 
       const awayTeamId =
-        Number(req.query.away);
+        Number(
+          req.query.away
+        );
+
 
       if (
         !homeTeamId ||
@@ -590,15 +642,18 @@ app.get(
 
       }
 
+
       const result =
         await analyzeMatchStats(
           homeTeamId,
           awayTeamId
         );
 
+
       res.json(
         result
       );
+
 
     } catch (error) {
 
@@ -606,6 +661,7 @@ app.get(
         "Match statistics error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -637,18 +693,25 @@ app.get(
     try {
 
       const homeTeamId =
-        Number(req.query.home);
+        Number(
+          req.query.home
+        );
 
       const awayTeamId =
-        Number(req.query.away);
+        Number(
+          req.query.away
+        );
 
       const odds =
-        Number(req.query.odds);
+        Number(
+          req.query.odds
+        );
 
       const pick =
         String(
           req.query.pick || ""
         );
+
 
       if (
         !homeTeamId ||
@@ -668,11 +731,13 @@ app.get(
 
       }
 
+
       const analysis =
         await analyzeMatchStats(
           homeTeamId,
           awayTeamId
         );
+
 
       const comparison =
         compareMarketWithStats(
@@ -683,6 +748,7 @@ app.get(
           analysis
         );
 
+
       res.json({
 
         success: true,
@@ -692,13 +758,17 @@ app.get(
         awayTeamId,
 
         market: {
+
           pick,
+
           odds
+
         },
 
         comparison
 
       });
+
 
     } catch (error) {
 
@@ -706,6 +776,7 @@ app.get(
         "Market statistics error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -715,8 +786,13 @@ app.get(
           error.message ||
           "Unable to compare market with statistics."
 
-      }
-                          );
+      });
+
+    }
+
+  }
+);
+
 
 /* =========================================================
    FOOTBALL-DATA.ORG PREMIER LEAGUE MATCHES TEST
@@ -732,6 +808,7 @@ app.get(
         await getCompetitionMatches(
           "PL"
         );
+
 
       res.json({
 
@@ -757,12 +834,14 @@ app.get(
 
       });
 
+
     } catch (error) {
 
       console.error(
         "Football-Data.org matches error:",
         error
       );
+
 
       res.status(500).json({
 
@@ -875,40 +954,53 @@ app.get(
    CONVERT OLD API CANDIDATES
    TO V2 MARKET FORMAT
    ========================================================= */
-}
+
 function convertCandidateToMarket(candidate) {
-  const event = candidate?.event || {};
-  const market = candidate?.market || {};
+
+  const event =
+    candidate?.event || {};
+
+  const market =
+    candidate?.market || {};
+
 
   return {
-    eventId: String(
-      candidate.eventId ||
-      event.eventId ||
-      ""
-    ),
+
+    eventId:
+      String(
+        candidate.eventId ||
+        event.eventId ||
+        ""
+      ),
+
 
     eventName:
       candidate.match ||
       candidate.eventName ||
       `${candidate.homeTeam || event.homeTeamName || ""} vs ${candidate.awayTeam || event.awayTeamName || ""}`,
 
+
     homeTeam:
       candidate.homeTeam ||
       event.homeTeamName ||
       "",
+
 
     awayTeam:
       candidate.awayTeam ||
       event.awayTeamName ||
       "",
 
+
     homeTeamId:
       candidate.homeTeamId ||
       null,
 
+
     awayTeamId:
       candidate.awayTeamId ||
       null,
+
 
     marketName:
       candidate.market ||
@@ -916,33 +1008,42 @@ function convertCandidateToMarket(candidate) {
       market.name ||
       "",
 
+
     selection:
       candidate.pick ||
       candidate.selection ||
       "",
 
+
     odds:
-      Number(candidate.odds || 0),
+      Number(
+        candidate.odds || 0
+      ),
+
 
     competition:
       candidate.competition ||
       event.competition ||
       "",
 
+
     category:
       candidate.category ||
       event.category ||
       "",
+
 
     gameId:
       candidate.gameId ||
       event.gameId ||
       "",
 
+
     startTime:
       candidate.startTime ||
       event.startTime ||
       null,
+
 
     marketId:
       String(
@@ -951,18 +1052,23 @@ function convertCandidateToMarket(candidate) {
         ""
       ),
 
+
     outcomeId:
       String(
         candidate.outcomeId ||
         ""
       ),
 
+
     specifier:
       candidate.specifier ??
       market.specifier ??
       null
+
   };
-     }
+
+}
+
 
 /* =========================================================
    MAIN OPTIMIZER
@@ -1075,6 +1181,7 @@ app.get(
         rawCandidates.length
       );
 
+
       console.log(
         "Unique markets:",
         markets.length
@@ -1096,6 +1203,7 @@ app.get(
         "V2 engine result:",
         engine.success
       );
+
 
       console.log(
         "V2 engine version:",
@@ -1160,18 +1268,24 @@ app.get(
               await fetch(
                 `${OLD_API}/create-booking`,
                 {
+
                   method: "POST",
 
                   headers: {
+
                     "Content-Type":
                       "application/json"
+
                   },
 
                   body:
                     JSON.stringify({
+
                       selections:
                         bookingSelections
+
                     })
+
                 }
               );
 
@@ -1181,6 +1295,7 @@ app.get(
 
 
             let bookingData;
+
 
             try {
 
@@ -1211,10 +1326,12 @@ app.get(
               booking =
                 bookingData;
 
+
               console.log(
                 "SportyBet booking created:",
                 booking.shareCode
               );
+
 
             } else {
 
@@ -1227,6 +1344,7 @@ app.get(
                   "SportyBet booking creation failed."
 
               };
+
 
               console.error(
                 "Booking creation failed:",
@@ -1248,12 +1366,14 @@ app.get(
 
             };
 
+
             console.error(
               "Booking request error:",
               bookingError
             );
 
           }
+
 
         } else {
 
