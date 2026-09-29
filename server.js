@@ -295,7 +295,87 @@ app.get(
 
   }
 );
+/* =========================================================
+   BATCH STATISTICAL SCORING TEST
+   ========================================================= */
 
+app.get(
+  "/statistical-score-test",
+  async (req, res) => {
+
+    try {
+
+      const homeTeamId =
+        Number(req.query.home);
+
+      const awayTeamId =
+        Number(req.query.away);
+
+      const odds =
+        Number(req.query.odds);
+
+      const pick =
+        String(
+          req.query.pick || ""
+        );
+
+      if (
+        !homeTeamId ||
+        !awayTeamId ||
+        !odds ||
+        !pick
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide home, away, odds and pick."
+
+        });
+
+      }
+
+      const result =
+        await scoreMarketsWithStatistics([
+          {
+            eventName:
+              "Statistical Test",
+
+            homeTeamId,
+
+            awayTeamId,
+
+            odds,
+
+            pick
+          }
+        ]);
+
+      res.json(result);
+
+    } catch (error) {
+
+      console.error(
+        "Batch statistical scoring error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        error:
+          error.message ||
+          "Unable to score market with statistics."
+
+      });
+
+    }
+
+  }
+);
 
 /* =========================================================
    FOOTBALL-DATA.ORG TEST
