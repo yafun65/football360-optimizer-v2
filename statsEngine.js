@@ -135,7 +135,22 @@ export async function testStatsConnection() {
 
 }
 
+export async function getTeamStats(
+  teamId,
+  leagueId,
+  season
+) {
 
+  return apiFootballRequest(
+    "/teams/statistics",
+    {
+      team: teamId,
+      league: leagueId,
+      season: season
+    }
+  );
+
+}
 /* =========================================================
    GET TEAM STATISTICS
    ========================================================= */
