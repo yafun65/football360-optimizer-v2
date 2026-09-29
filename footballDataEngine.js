@@ -102,7 +102,6 @@ async function footballDataRequest(
 /* =========================================================
    TEST CONNECTION
    ========================================================= */
-
 export async function testFootballDataConnection() {
 
   const data =
@@ -117,25 +116,11 @@ export async function testFootballDataConnection() {
     provider:
       "Football-Data.org",
 
-    competition: {
-
-      id:
-        data?.competition?.id ||
-        null,
-
-      name:
-        data?.competition?.name ||
-        null,
-
-      code:
-        data?.competition?.code ||
-        null
-
-    },
+    competition:
+      data?.competition || null,
 
     area:
-      data?.area?.name ||
-      null,
+      data?.area || null,
 
     currentSeason:
       data?.currentSeason || null
@@ -143,8 +128,6 @@ export async function testFootballDataConnection() {
   };
 
 }
-
-
 /* =========================================================
    GET COMPETITION MATCHES
    ========================================================= */
