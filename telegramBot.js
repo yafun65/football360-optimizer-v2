@@ -95,6 +95,7 @@ async function optimize(chatId, target) {
     const engine = data.engineResult || {};
     const combination = engine.combination || {};
     const selections = combination.selections || [];
+    const booking = data.booking || null;
 
     let message =
       `⚽ <b>FOOTBALL 360 OPTIMIZER</b>\n\n` +
@@ -109,13 +110,38 @@ async function optimize(chatId, target) {
         `<b>${index + 1}. ${escapeHtml(item.eventName)}</b>\n` +
         `Pick: <b>${escapeHtml(item.selection)}</b>\n` +
         `Market: ${escapeHtml(item.marketName)}\n` +
-        `Odds: <b>${item.odds}</b>\n` +
+        `Odds: <b>${Number(item.odds).toFixed(2)}</b>\n` +
         `League: ${escapeHtml(item.competition)}\n\n`;
     });
 
+    // =====================================================
+    // SPORTYBET BOOKING CODE
+    // =====================================================
+
+    if (booking?.success && booking?.shareCode) {
+      message +=
+        `━━━━━━━━━━━━━━\n\n` +
+        `🎟 <b>SPORTYBET BOOKING CODE</b>\n\n` +
+        `<code>${escapeHtml(booking.shareCode)}</code>\n\n`;
+
+      if (booking.shareURL) {
+        message +=
+          `🔗 <a href="${escapeHtml(booking.shareURL)}">Open Booking</a>\n\n`;
+      }
+
+      message +=
+        `⚠️ <i>The booking code is generated automatically. ` +
+        `It does not place a wager.</i>\n`;
+    } else {
+      message +=
+        `━━━━━━━━━━━━━━\n\n` +
+        `⚠️ <b>Booking code could not be generated.</b>\n\n` +
+        `<i>The selections were generated successfully, ` +
+        `but SportyBet did not return a booking code.</i>\n`;
+    }
+
     message +=
-      `━━━━━━━━━━━━━━\n` +
-      `⚠️ <i>Beta result. Odds and markets may change before placement.</i>`;
+      `\n⚠️ <i>Beta result. Odds and markets may change before placement.</i>`;
 
     await sendMessage(chatId, message, {
       reply_markup: mainMenu()
