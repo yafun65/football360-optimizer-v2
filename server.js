@@ -27,7 +27,8 @@ import {
   getRecentTeamForm,
     analyzeMatchStats,
   compareMarketWithStats,
-  scoreMarketsWithStatistics
+    scoreMarketsWithStatistics,
+  resolveFootballDataTeamId
 } from "./footballDataEngine.js";
 
 const OLD_API =
