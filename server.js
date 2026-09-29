@@ -181,15 +181,9 @@ async function fetchSportyBetCandidates(target) {
   return data;
 
 }
-
 /* =========================================================
    API-FOOTBALL STATISTICS TEST
    ========================================================= */
-
-import {
-  testStatsConnection
-} from "./statsEngine.js";
-
 
 app.get(
   "/stats-test",
@@ -200,11 +194,9 @@ app.get(
       const result =
         await testStatsConnection();
 
-
       res.json(
         result
       );
-
 
     } catch (error) {
 
@@ -212,7 +204,6 @@ app.get(
         "Statistics API test error:",
         error
       );
-
 
       res.status(500).json({
 
