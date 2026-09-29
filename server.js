@@ -29,6 +29,10 @@ import {
 
 const OLD_API =
   "https://sportybet-api.onrender.com";
+
+const PORT =
+  process.env.PORT || 10000;
+
 const app = express();
 
 app.use(cors());
