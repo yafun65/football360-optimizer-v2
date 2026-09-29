@@ -51,20 +51,46 @@ app.get("/", (req, res) => {
   });
 
 });
-
-
 /* =========================================================
    FETCH SPORTYBET CANDIDATE POOL
    ========================================================= */
 
 async function fetchSportyBetCandidates(target) {
 
+  /*
+     IMPORTANT:
+
+     The old STRATEGY_ENGINE_V3 should NOT receive the
+     user's final target.
+
+     For example, if the user requests 100x, the old
+     engine may reject 100x before returning its
+     candidate pool.
+
+     V2/V4.3 is responsible for building the final target.
+
+     Therefore we use a stable candidate-pool target that
+     is known to return the full filtered SportyBet markets.
+  */
+
+  const candidatePoolTarget = 10;
+
   const url =
-    `${OLD_API}/selection-engine?target=${encodeURIComponent(target)}&includeCandidates=true`;
+    `${OLD_API}/selection-engine?target=${encodeURIComponent(candidatePoolTarget)}&includeCandidates=true`;
 
   console.log(
-    "Fetching SportyBet candidates:",
+    "Fetching SportyBet candidate pool:",
     url
+  );
+
+  console.log(
+    "Requested final target:",
+    target
+  );
+
+  console.log(
+    "Candidate pool target:",
+    candidatePoolTarget
   );
 
 
@@ -108,7 +134,12 @@ async function fetchSportyBetCandidates(target) {
   );
 
   console.log(
-    "Filtered candidates:",
+    "Old SportyBet API engine version:",
+    data.engineVersion
+  );
+
+  console.log(
+    "Candidate pool size:",
     Array.isArray(data.filteredCandidates)
       ? data.filteredCandidates.length
       : 0
@@ -116,16 +147,15 @@ async function fetchSportyBetCandidates(target) {
 
 
   /*
-     IMPORTANT:
+     We intentionally do NOT require:
 
-     We do NOT require data.success === true.
+       data.success === true
 
-     The old strategy engine can fail to create
-     its own combination while still returning the
-     complete filteredCandidates pool.
+     because the old engine's own combination may fail
+     while its candidate pool is still usable.
 
-     V2 needs the candidate pool, not the old
-     combination.
+     V4.3 is the engine responsible for the final
+     optimization.
   */
 
   if (
@@ -146,6 +176,7 @@ async function fetchSportyBetCandidates(target) {
   return data;
 
 }
+
 
 
 /* =========================================================
