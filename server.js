@@ -715,13 +715,8 @@ app.get(
           error.message ||
           "Unable to compare market with statistics."
 
-      });
-
-    }
-
-  
-);
-
+      }
+                          );
 
 /* =========================================================
    FOOTBALL-DATA.ORG PREMIER LEAGUE MATCHES TEST
