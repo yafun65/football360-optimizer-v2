@@ -2,8 +2,6 @@
    FOOTBALL 360 OPTIMIZER V2
    SERVER
    ========================================================= */
-
-import express from "express";
 import express from "express";
 import cors from "cors";
 
