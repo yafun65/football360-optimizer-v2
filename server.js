@@ -24,7 +24,8 @@ import {
   getCompetitionMatches,
   getCompetitionStandings,
   getFootballDataTeamMatches,
-  getRecentTeamForm
+  getRecentTeamForm,
+  analyzeMatchStats
 } from "./footballDataEngine.js";
 
 const OLD_API =
@@ -397,6 +398,72 @@ app.get(
         error:
           error.message ||
           "Unable to retrieve team form."
+
+      });
+
+    }
+
+  }
+);
+/* =========================================================
+   FOOTBALL-DATA.ORG MATCH ANALYSIS TEST
+   ========================================================= */
+
+app.get(
+  "/match-stats-test",
+  async (req, res) => {
+
+    try {
+
+      const homeTeamId =
+        Number(req.query.home);
+
+      const awayTeamId =
+        Number(req.query.away);
+
+      if (
+        !homeTeamId ||
+        !awayTeamId
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide home and away team IDs."
+
+        });
+
+      }
+
+      const result =
+        await analyzeMatchStats(
+          homeTeamId,
+          awayTeamId
+        );
+
+      res.json(
+        result
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Match statistics error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        provider:
+          "Football-Data.org",
+
+        error:
+          error.message ||
+          "Unable to analyze match."
 
       });
 
