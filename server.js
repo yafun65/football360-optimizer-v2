@@ -2,13 +2,13 @@
    FOOTBALL 360 OPTIMIZER V2
    SERVER
    ========================================================= */
-import express from "express";
-import cors from "cors";
-import { startTelegramBot } from "./telegramBot.js";
-
 import {
-  runProbabilityEngine
-} from "./probabilityEngine.js";
+  testFootballDataConnection,
+  getCompetitionMatches,
+  getCompetitionStandings,
+  getFootballDataTeamMatches,
+  getRecentTeamForm
+} from "./footballDataEngine.js";
 
 import {
   testStatsConnection,
@@ -336,6 +336,66 @@ app.get(
         error:
           error.message ||
           "Football-Data.org connection failed."
+
+      });
+
+    }
+
+  }
+);
+/* =========================================================
+   FOOTBALL-DATA.ORG TEAM FORM TEST
+   ========================================================= */
+
+app.get(
+  "/team-form-test",
+  async (req, res) => {
+
+    try {
+
+      const teamId =
+        Number(req.query.team);
+
+      if (!teamId) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide a team ID."
+
+        });
+
+      }
+
+      const result =
+        await getRecentTeamForm(
+          teamId,
+          5
+        );
+
+      res.json(
+        result
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Team form error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        provider:
+          "Football-Data.org",
+
+        error:
+          error.message ||
+          "Unable to retrieve team form."
 
       });
 
