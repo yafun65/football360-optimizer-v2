@@ -2,7 +2,6 @@
    FOOTBALL 360 OPTIMIZER V2
    SERVER
    ========================================================= */
-
 import express from "express";
 import cors from "cors";
 import { startTelegramBot } from "./telegramBot.js";
@@ -10,6 +9,12 @@ import { startTelegramBot } from "./telegramBot.js";
 import {
   runProbabilityEngine
 } from "./probabilityEngine.js";
+
+import {
+  testStatsConnection,
+  getTeamStats
+} from "./statsEngine.js";
+
 
 
 const app = express();
