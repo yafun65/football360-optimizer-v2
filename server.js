@@ -221,7 +221,82 @@ app.get(
   }
 );
 
+/* =========================================================
+   TEAM NAME RESOLVER TEST
+   ========================================================= */
 
+app.get(
+  "/team-resolver-test",
+  async (req, res) => {
+
+    try {
+
+      const team =
+        String(
+          req.query.team || ""
+        );
+
+      const competition =
+        String(
+          req.query.competition || ""
+        );
+
+      if (
+        !team ||
+        !competition
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Provide team and competition."
+
+        });
+
+      }
+
+      const teamId =
+        await resolveFootballDataTeamId(
+          team,
+          competition
+        );
+
+      res.json({
+
+        success: true,
+
+        team,
+
+        competition,
+
+        footballDataTeamId:
+          teamId
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Team resolver error:",
+        error
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        error:
+          error.message ||
+          "Unable to resolve team."
+
+      });
+
+    }
+
+  }
+);
 /* =========================================================
    API-FOOTBALL TEAM STATISTICS TEST
    ========================================================= */
