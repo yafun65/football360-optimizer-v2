@@ -1004,6 +1004,170 @@ export function compareMarketWithStats(
 
            }
 /* =========================================================
+   BATCH MARKET STATISTICAL SCORING
+   ========================================================= */
+
+export async function scoreMarketsWithStatistics(
+  markets
+) {
+
+  if (!Array.isArray(markets)) {
+
+    throw new Error(
+      "Markets array is required."
+    );
+
+  }
+
+  const scoredMarkets = [];
+
+  for (const market of markets) {
+
+    try {
+
+      const homeTeamId =
+        Number(
+          market.homeTeamId
+        );
+
+      const awayTeamId =
+        Number(
+          market.awayTeamId
+        );
+
+      /*
+       * We need both Football-Data.org team IDs
+       * before statistical analysis can be performed.
+       */
+
+      if (
+        !homeTeamId ||
+        !awayTeamId
+      ) {
+
+        scoredMarkets.push({
+
+          ...market,
+
+          statisticsSupported: false,
+
+          statisticalScore: 0,
+
+          statisticalSupport: "UNAVAILABLE",
+
+          statisticalReason:
+            "Football-Data.org team IDs are missing."
+
+        });
+
+        continue;
+
+      }
+
+      const analysis =
+        await analyzeMatchStats(
+          homeTeamId,
+          awayTeamId
+        );
+
+      const comparison =
+        compareMarketWithStats(
+          market,
+          analysis
+        );
+
+      let statisticalScore = 0;
+
+      if (
+        comparison.supported
+      ) {
+
+        statisticalScore =
+          Math.max(
+            0,
+            Math.min(
+              100,
+              50 +
+              (
+                comparison.probabilityDifference *
+                500
+              )
+            )
+          );
+
+      }
+
+      scoredMarkets.push({
+
+        ...market,
+
+        statisticsSupported:
+          comparison.supported,
+
+        statisticalScore:
+          Number(
+            statisticalScore.toFixed(2)
+          ),
+
+        statisticalSupport:
+          comparison.support ||
+          "LOW",
+
+        statisticalProbability:
+          comparison.statisticalProbability,
+
+        impliedProbability:
+          comparison.impliedProbability,
+
+        probabilityDifference:
+          comparison.probabilityDifference,
+
+        statisticalAnalysis:
+          analysis
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Statistical scoring error:",
+        error
+      );
+
+      scoredMarkets.push({
+
+        ...market,
+
+        statisticsSupported: false,
+
+        statisticalScore: 0,
+
+        statisticalSupport:
+          "UNAVAILABLE",
+
+        statisticalReason:
+          error.message ||
+          "Statistical analysis failed."
+
+      });
+
+    }
+
+  }
+
+  return {
+
+    success: true,
+
+    totalMarkets:
+      markets.length,
+
+    scoredMarkets
+
+  };
+
+}
+/* =========================================================
    GET COMPETITION STANDINGS
    ========================================================= */
 
