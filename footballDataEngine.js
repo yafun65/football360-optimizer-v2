@@ -364,6 +364,420 @@ export async function getRecentTeamForm(
   };
 
        }
+/* =========================================================
+   MATCH STATISTICAL ANALYSIS
+   COMBINES RECENT FORM OF BOTH TEAMS
+   ========================================================= */
+
+export async function analyzeMatchStats(
+  homeTeamId,
+  awayTeamId
+) {
+
+  const homeForm =
+    await getRecentTeamForm(
+      homeTeamId,
+      5
+    );
+
+  const awayForm =
+    await getRecentTeamForm(
+      awayTeamId,
+      5
+    );
+
+  if (
+    !homeForm?.success ||
+    !awayForm?.success
+  ) {
+
+    throw new Error(
+      "Unable to retrieve recent form for both teams."
+    );
+
+  }
+
+  /*
+   * ATTACKING STRENGTH
+   *
+   * Higher goals-per-game means
+   * stronger recent attacking output.
+   */
+
+  const homeAttack =
+    Number(
+      homeForm.goalsForPerGame || 0
+    );
+
+  const awayAttack =
+    Number(
+      awayForm.goalsForPerGame || 0
+    );
+
+  /*
+   * DEFENSIVE STRENGTH
+   *
+   * Lower goals conceded means
+   * stronger recent defense.
+   */
+
+  const homeDefense =
+    Number(
+      homeForm.goalsAgainstPerGame || 0
+    );
+
+  const awayDefense =
+    Number(
+      awayForm.goalsAgainstPerGame || 0
+    );
+
+  /*
+   * FORM POINTS
+   *
+   * Maximum 15 points from
+   * the last 5 matches.
+   */
+
+  const homeFormRate =
+    Number(
+      homeForm.points || 0
+    ) / 15;
+
+  const awayFormRate =
+    Number(
+      awayForm.points || 0
+    ) / 15;
+
+  /*
+   * CLEAN SHEET RATE
+   */
+
+  const homeCleanSheet =
+    Number(
+      homeForm.cleanSheetRate || 0
+    );
+
+  const awayCleanSheet =
+    Number(
+      awayForm.cleanSheetRate || 0
+    );
+
+  /*
+   * FAILED TO SCORE RATE
+   */
+
+  const homeFailedToScore =
+    Number(
+      homeForm.failedToScoreRate || 0
+    );
+
+  const awayFailedToScore =
+    Number(
+      awayForm.failedToScoreRate || 0
+    );
+
+  /*
+   * SIMPLE ATTACK INDEX
+   */
+
+  const homeAttackIndex =
+    Math.min(
+      homeAttack / 2.5,
+      1
+    );
+
+  const awayAttackIndex =
+    Math.min(
+      awayAttack / 2.5,
+      1
+    );
+
+  /*
+   * SIMPLE DEFENSE INDEX
+   *
+   * Lower goals conceded =
+   * higher defensive score.
+   */
+
+  const homeDefenseIndex =
+    Math.max(
+      0,
+      1 -
+      (homeDefense / 2.5)
+    );
+
+  const awayDefenseIndex =
+    Math.max(
+      0,
+      1 -
+      (awayDefense / 2.5)
+    );
+
+  /*
+   * OVERALL TEAM STRENGTH
+   */
+
+  const homeStrength =
+    (
+      homeAttackIndex * 0.35 +
+      homeDefenseIndex * 0.25 +
+      homeFormRate * 0.30 +
+      homeCleanSheet * 0.10
+    );
+
+  const awayStrength =
+    (
+      awayAttackIndex * 0.35 +
+      awayDefenseIndex * 0.25 +
+      awayFormRate * 0.30 +
+      awayCleanSheet * 0.10
+    );
+
+  /*
+   * HOME ADVANTAGE
+   */
+
+  const homeAdvantage =
+    0.08;
+
+  const adjustedHomeStrength =
+    homeStrength +
+    homeAdvantage;
+
+  /*
+   * NORMALIZE INTO RELATIVE
+   * WIN PROBABILITIES.
+   */
+
+  const totalStrength =
+    adjustedHomeStrength +
+    awayStrength;
+
+  let homeWinProbability =
+    totalStrength > 0
+      ? adjustedHomeStrength /
+        totalStrength
+      : 0.5;
+
+  let awayWinProbability =
+    totalStrength > 0
+      ? awayStrength /
+        totalStrength
+      : 0.5;
+
+  /*
+   * DRAW ESTIMATE
+   *
+   * Draw probability starts around
+   * 25% and increases when the teams
+   * have similar strength.
+   */
+
+  const strengthDifference =
+    Math.abs(
+      adjustedHomeStrength -
+      awayStrength
+    );
+
+  let drawProbability =
+    0.25 -
+    (
+      strengthDifference * 0.10
+    );
+
+  drawProbability =
+    Math.max(
+      0.15,
+      Math.min(
+        0.30,
+        drawProbability
+      )
+    );
+
+  /*
+   * Rebalance the win probabilities
+   * after reserving probability for draw.
+   */
+
+  const winProbabilityTotal =
+    homeWinProbability +
+    awayWinProbability;
+
+  homeWinProbability =
+    (
+      homeWinProbability /
+      winProbabilityTotal
+    ) *
+    (1 - drawProbability);
+
+  awayWinProbability =
+    (
+      awayWinProbability /
+      winProbabilityTotal
+    ) *
+    (1 - drawProbability);
+
+  /*
+   * BTTS ESTIMATE
+   */
+
+  const bttsProbability =
+    (
+      homeAttackIndex *
+      awayAttackIndex *
+      0.65
+    ) +
+    (
+      (
+        1 - homeCleanSheet
+      ) *
+      (
+        1 - awayCleanSheet
+      ) *
+      0.35
+    );
+
+  /*
+   * OVER 2.5 ESTIMATE
+   */
+
+  const expectedGoals =
+    homeAttack +
+    awayAttack;
+
+  let over25Probability =
+    0.30 +
+    (
+      expectedGoals /
+      5
+    );
+
+  over25Probability =
+    Math.max(
+      0.15,
+      Math.min(
+        0.85,
+        over25Probability
+      )
+    );
+
+  /*
+   * DOUBLE CHANCE
+   */
+
+  const homeOrDrawProbability =
+    homeWinProbability +
+    drawProbability;
+
+  const awayOrDrawProbability =
+    awayWinProbability +
+    drawProbability;
+
+  /*
+   * RETURN ANALYSIS
+   */
+
+  return {
+
+    success: true,
+
+    homeTeamId:
+      Number(homeTeamId),
+
+    awayTeamId:
+      Number(awayTeamId),
+
+    homeForm: {
+
+      form:
+        homeForm.formString,
+
+      points:
+        homeForm.points,
+
+      goalsForPerGame:
+        homeForm.goalsForPerGame,
+
+      goalsAgainstPerGame:
+        homeForm.goalsAgainstPerGame,
+
+      cleanSheetRate:
+        homeForm.cleanSheetRate,
+
+      failedToScoreRate:
+        homeFailedToScore
+
+    },
+
+    awayForm: {
+
+      form:
+        awayForm.formString,
+
+      points:
+        awayForm.points,
+
+      goalsForPerGame:
+        awayForm.goalsForPerGame,
+
+      goalsAgainstPerGame:
+        awayForm.goalsAgainstPerGame,
+
+      cleanSheetRate:
+        awayForm.cleanSheetRate,
+
+      failedToScoreRate:
+        awayFailedToScore
+
+    },
+
+    probabilities: {
+
+      homeWin:
+        Number(
+          homeWinProbability.toFixed(4)
+        ),
+
+      draw:
+        Number(
+          drawProbability.toFixed(4)
+        ),
+
+      awayWin:
+        Number(
+          awayWinProbability.toFixed(4)
+        ),
+
+      homeOrDraw:
+        Number(
+          homeOrDrawProbability.toFixed(4)
+        ),
+
+      awayOrDraw:
+        Number(
+          awayOrDrawProbability.toFixed(4)
+        ),
+
+      btts:
+        Number(
+          bttsProbability.toFixed(4)
+        ),
+
+      over25:
+        Number(
+          over25Probability.toFixed(4)
+        )
+
+    },
+
+    expectedGoals:
+      Number(
+        expectedGoals.toFixed(2)
+      )
+
+  };
+
+}
 
 /* =========================================================
    GET COMPETITION STANDINGS
