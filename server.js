@@ -15,12 +15,7 @@ import {
   getTeamStats
 } from "./statsEngine.js";
 
-import {
-  testFootballDataConnection,
-  getCompetitionMatches,
-  getCompetitionStandings,
-  getFootballDataTeamMatches
-} from "./footballDataEngine.js";
+
 
 const app = express();
 
