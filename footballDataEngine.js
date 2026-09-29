@@ -1004,6 +1004,206 @@ export function compareMarketWithStats(
 
            }
 /* =========================================================
+   FOOTBALL-DATA.ORG TEAM NAME RESOLVER
+   ========================================================= */
+
+const teamResolverCache = new Map();
+
+function normalizeTeamName(name) {
+
+  return String(name || "")
+    .toLowerCase()
+    .replace(/\bfc\b/g, "")
+    .replace(/\bafc\b/g, "")
+    .replace(/\bcf\b/g, "")
+    .replace(/\bsc\b/g, "")
+    .replace(/\bac\b/g, "")
+    .replace(/\bcalcio\b/g, "")
+    .replace(/\bclub\b/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+
+}
+
+
+async function loadCompetitionTeams(
+  competitionCode
+) {
+
+  if (
+    teamResolverCache.has(
+      competitionCode
+    )
+  ) {
+
+    return teamResolverCache.get(
+      competitionCode
+    );
+
+  }
+
+
+  const data =
+    await footballDataRequest(
+      `/competitions/${competitionCode}/teams`
+    );
+
+
+  const teams =
+    Array.isArray(data?.teams)
+      ? data.teams
+      : [];
+
+
+  const teamMap =
+    new Map();
+
+
+  for (
+    const team
+    of teams
+  ) {
+
+    const id =
+      Number(team?.id);
+
+    if (!id) {
+      continue;
+    }
+
+
+    const names = [
+
+      team?.name,
+
+      team?.shortName,
+
+      team?.tla
+
+    ];
+
+
+    for (
+      const name
+      of names
+    ) {
+
+      if (!name) {
+        continue;
+      }
+
+
+      const normalized =
+        normalizeTeamName(
+          name
+        );
+
+
+      if (normalized) {
+
+        teamMap.set(
+          normalized,
+          id
+        );
+
+      }
+
+    }
+
+  }
+
+
+  teamResolverCache.set(
+    competitionCode,
+    teamMap
+  );
+
+
+  return teamMap;
+
+}
+
+
+/* =========================================================
+   RESOLVE SPORTYBET TEAM NAME
+   ========================================================= */
+
+export async function resolveFootballDataTeamId(
+  teamName,
+  competition
+) {
+
+  if (!teamName) {
+    return null;
+  }
+
+
+  const normalizedName =
+    normalizeTeamName(
+      teamName
+    );
+
+
+  if (!normalizedName) {
+    return null;
+  }
+
+
+  /*
+   * Map SportyBet competitions to
+   * Football-Data.org competition codes.
+   */
+
+  const competitionMap = {
+
+    "Premier League":
+      "PL",
+
+    "La Liga":
+      "PD",
+
+    "Serie A":
+      "SA",
+
+    "Bundesliga":
+      "BL1",
+
+    "Ligue 1":
+      "FL1"
+
+  };
+
+
+  const competitionCode =
+    competitionMap[
+      String(
+        competition || ""
+      )
+    ];
+
+
+  if (!competitionCode) {
+
+    return null;
+
+  }
+
+
+  const teamMap =
+    await loadCompetitionTeams(
+      competitionCode
+    );
+
+
+  return (
+    teamMap.get(
+      normalizedName
+    ) ||
+    null
+  );
+
+}
+/* =========================================================
    BATCH MARKET STATISTICAL SCORING
    ========================================================= */
 
