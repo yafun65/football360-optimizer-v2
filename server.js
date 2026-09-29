@@ -1035,7 +1035,6 @@ app.get(
    CONVERT OLD API CANDIDATES
    TO V2 MARKET FORMAT
    ========================================================= */
-
 function convertCandidateToMarket(candidate) {
 
   const event =
@@ -1043,7 +1042,6 @@ function convertCandidateToMarket(candidate) {
 
   const market =
     candidate?.market || {};
-
 
   return {
 
@@ -1054,34 +1052,28 @@ function convertCandidateToMarket(candidate) {
         ""
       ),
 
-
     eventName:
       candidate.match ||
       candidate.eventName ||
       `${candidate.homeTeam || event.homeTeamName || ""} vs ${candidate.awayTeam || event.awayTeamName || ""}`,
-
 
     homeTeam:
       candidate.homeTeam ||
       event.homeTeamName ||
       "",
 
-
     awayTeam:
       candidate.awayTeam ||
       event.awayTeamName ||
       "",
 
-
     homeTeamId:
       candidate.homeTeamId ||
       null,
 
-
     awayTeamId:
       candidate.awayTeamId ||
       null,
-
 
     marketName:
       candidate.market ||
@@ -1089,42 +1081,35 @@ function convertCandidateToMarket(candidate) {
       market.name ||
       "",
 
-
     selection:
       candidate.pick ||
       candidate.selection ||
       "",
-
 
     odds:
       Number(
         candidate.odds || 0
       ),
 
-
     competition:
       candidate.competition ||
       event.competition ||
       "",
-
 
     category:
       candidate.category ||
       event.category ||
       "",
 
-
     gameId:
       candidate.gameId ||
       event.gameId ||
       "",
 
-
     startTime:
       candidate.startTime ||
       event.startTime ||
       null,
-
 
     marketId:
       String(
@@ -1133,13 +1118,11 @@ function convertCandidateToMarket(candidate) {
         ""
       ),
 
-
     outcomeId:
       String(
         candidate.outcomeId ||
         ""
       ),
-
 
     specifier:
       candidate.specifier ??
@@ -1148,9 +1131,7 @@ function convertCandidateToMarket(candidate) {
 
   };
 
-}
-
-
+       }
 /* =========================================================
    MAIN OPTIMIZER
    ========================================================= */
