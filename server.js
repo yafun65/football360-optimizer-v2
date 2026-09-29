@@ -965,7 +965,93 @@ function convertCandidateToMarket(
   };
 
 }
+function convertCandidateToMarket(candidate) {
+  const event = candidate?.event || {};
+  const market = candidate?.market || {};
 
+  return {
+    eventId: String(
+      candidate.eventId ||
+      event.eventId ||
+      ""
+    ),
+
+    eventName:
+      candidate.match ||
+      candidate.eventName ||
+      `${candidate.homeTeam || event.homeTeamName || ""} vs ${candidate.awayTeam || event.awayTeamName || ""}`,
+
+    homeTeam:
+      candidate.homeTeam ||
+      event.homeTeamName ||
+      "",
+
+    awayTeam:
+      candidate.awayTeam ||
+      event.awayTeamName ||
+      "",
+
+    homeTeamId:
+      candidate.homeTeamId ||
+      null,
+
+    awayTeamId:
+      candidate.awayTeamId ||
+      null,
+
+    marketName:
+      candidate.market ||
+      candidate.marketName ||
+      market.name ||
+      "",
+
+    selection:
+      candidate.pick ||
+      candidate.selection ||
+      "",
+
+    odds:
+      Number(candidate.odds || 0),
+
+    competition:
+      candidate.competition ||
+      event.competition ||
+      "",
+
+    category:
+      candidate.category ||
+      event.category ||
+      "",
+
+    gameId:
+      candidate.gameId ||
+      event.gameId ||
+      "",
+
+    startTime:
+      candidate.startTime ||
+      event.startTime ||
+      null,
+
+    marketId:
+      String(
+        candidate.marketId ||
+        market.marketId ||
+        ""
+      ),
+
+    outcomeId:
+      String(
+        candidate.outcomeId ||
+        ""
+      ),
+
+    specifier:
+      candidate.specifier ??
+      market.specifier ??
+      null
+  };
+     }
 
 /* =========================================================
    MAIN OPTIMIZER
