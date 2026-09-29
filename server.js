@@ -288,7 +288,7 @@ app.get(
         success: false,
 
         error:
-          error.message ||
+          error.message |
           "Unable to resolve team."
 
       });
@@ -1249,7 +1249,58 @@ app.get(
         markets.length
       );
 
+      /* ---------------------------------------------------
+         RESOLVE FOOTBALL-DATA.ORG TEAM IDS
+         --------------------------------------------------- */
 
+      for (
+        const market
+        of markets
+      ) {
+
+        try {
+
+          if (
+            !market.homeTeamId &&
+            market.homeTeam &&
+            market.competition
+          ) {
+
+            market.homeTeamId =
+              await resolveFootballDataTeamId(
+                market.homeTeam,
+                market.competition
+              );
+
+          }
+
+
+          if (
+            !market.awayTeamId &&
+            market.awayTeam &&
+            market.competition
+          ) {
+
+            market.awayTeamId =
+              await resolveFootballDataTeamId(
+                market.awayTeam,
+                market.competition
+              );
+
+          }
+
+        } catch (error) {
+
+          console.error(
+            "Team ID resolution failed:",
+            market.homeTeam,
+            market.awayTeam,
+            error.message
+          );
+
+        }
+
+      }
       /* ---------------------------------------------------
          RUN V4.4 PROBABILITY ENGINE
          --------------------------------------------------- */
