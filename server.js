@@ -221,8 +221,6 @@ app.get(
 
   }
 );
-
-
 /* =========================================================
    TEAM NAME RESOLVER TEST
    ========================================================= */
@@ -243,7 +241,6 @@ app.get(
           req.query.competition || ""
         );
 
-
       if (
         !team ||
         !competition
@@ -260,15 +257,13 @@ app.get(
 
       }
 
-
       const teamId =
         await resolveFootballDataTeamId(
           team,
           competition
         );
 
-
-      res.json({
+      return res.json({
 
         success: true,
 
@@ -281,7 +276,6 @@ app.get(
 
       });
 
-
     } catch (error) {
 
       console.error(
@@ -289,8 +283,7 @@ app.get(
         error
       );
 
-
-      res.status(500).json({
+      return res.status(500).json({
 
         success: false,
 
@@ -302,100 +295,13 @@ app.get(
 
     }
 
-  
+  }
 );
+
 
 /* =========================================================
    MATCH TEAM RESOLVER TEST
    ========================================================= */
-
-app.get(
-  "/match-team-resolver-test",
-  async (req, res) => {
-
-    try {
-
-      const homeTeam =
-        String(req.query.home || "").trim();
-
-      const awayTeam =
-        String(req.query.away || "").trim();
-
-      const competition =
-        String(req.query.competition || "").trim();
-
-      if (
-        !homeTeam ||
-        !awayTeam ||
-        !competition
-      ) {
-
-        return res.status(400).json({
-          success: false,
-          error:
-            "Provide home, away and competition."
-        });
-
-      }
-
-      const homeTeamId =
-        await resolveFootballDataTeamId(
-          homeTeam,
-          competition
-        );
-
-      const awayTeamId =
-        await resolveFootballDataTeamId(
-          awayTeam,
-          competition
-        );
-
-      return res.json({
-
-        success: true,
-
-        competition,
-
-        home: {
-          team: homeTeam,
-          footballDataTeamId: homeTeamId
-        },
-
-        away: {
-          team: awayTeam,
-          footballDataTeamId: awayTeamId
-        },
-
-        bothResolved:
-          Boolean(
-            homeTeamId &&
-            awayTeamId
-          )
-
-      });
-
-    } catch (error) {
-
-      console.error(
-        "Match team resolver test error:",
-        error
-      );
-
-      return res.status(500).json({
-
-        success: false,
-
-        error:
-          error.message ||
-          "Unable to resolve match teams."
-
-      });
-
-    }
-
-  }
-);
-
 /* =========================================================
    API-FOOTBALL TEAM STATISTICS TEST
    ========================================================= */
