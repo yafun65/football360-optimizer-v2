@@ -177,7 +177,55 @@ async function fetchSportyBetCandidates(target) {
 
 }
 
+/* =========================================================
+   API-FOOTBALL STATISTICS TEST
+   ========================================================= */
 
+import {
+  testStatsConnection
+} from "./statsEngine.js";
+
+
+app.get(
+  "/stats-test",
+  async (req, res) => {
+
+    try {
+
+      const result =
+        await testStatsConnection();
+
+
+      res.json(
+        result
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Statistics API test error:",
+        error
+      );
+
+
+      res.status(500).json({
+
+        success: false,
+
+        provider:
+          "API-Football",
+
+        error:
+          error.message ||
+          "Statistics API connection failed."
+
+      });
+
+    }
+
+  }
+);
 
 /* =========================================================
    SPORTYBET API CONNECTION TEST
